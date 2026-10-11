@@ -3,7 +3,10 @@
 @namespace    blackout-for-startpage
 @version      1.2.0
 @license      MIT
-@description  True-black OLED theme for Startpage with a switchable accent colour and results position. Hides ads and promos. Uses only fonts already on the PC.
+@homepageURL  https://github.com/astqh/blackout-for-startpage
+@supportURL   https://github.com/astqh/blackout-for-startpage/issues
+@updateURL    https://astqh.github.io/blackout-for-startpage/theme/blackout.user.css
+@description  A true black theme for Startpage. Pick an accent colour and where the results sit on wide screens. Hides ads and promos and uses fonts already on your computer.
 @preprocessor default
 @var select accent "Accent colour" {
   "Soft blue*": "#a3c4ff",

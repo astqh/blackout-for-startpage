@@ -3,7 +3,11 @@
 // @namespace    blackout-for-startpage/home
 // @version      1.0.0
 // @license      MIT
-// @description  Widgets under the search box on the Startpage home page: clock, weather, shortcuts, notes, calendar, currency, timer, and the F1 script's next race. Turn each one on or off and drag them into any order.
+// @homepageURL  https://github.com/astqh/blackout-for-startpage
+// @supportURL   https://github.com/astqh/blackout-for-startpage/issues
+// @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/home.user.js
+// @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/home.user.js
+// @description  Widgets under the search box on the Startpage home page. Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race. Turn each one on or off and drag them into any order.
 // @match        https://*.startpage.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue

@@ -3,7 +3,11 @@
 // @namespace    blackout-for-startpage/tweaks
 // @version      1.1.0
 // @license      MIT
-// @description  Startpage clean-ups and result tools: results open in the same tab, no ad-blocker banner, no "Private Search" badge, a ⋮ menu on every result (Anonymous View, summary, copy link, pin or hide a site) and keyboard keys. Each part can be switched off.
+// @homepageURL  https://github.com/astqh/blackout-for-startpage
+// @supportURL   https://github.com/astqh/blackout-for-startpage/issues
+// @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/tweaks.user.js
+// @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/tweaks.user.js
+// @description  Small fixes for Startpage. Results open in the same tab and the ad blocker banner and Private Search badge are hidden. Every result gets a ⋮ menu to open it in Anonymous View, summarize it, copy the link, or pin or hide the site. Adds keyboard keys. Each part can be turned off.
 // @match        https://*.startpage.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -64,7 +68,7 @@
     });
   }
 
-  // 3) "Private Search" badge next to the filters: only a list of Startpage's promises, no settings.
+  // 3) "Private Search" badge next to the filters: hidden to reduce clutter.
   //    Plus the page-level rules for the result tools below (pinned on top, hidden sites, the selected result).
   // The style goes at the very end of the page's <html>, the way Stylus adds styles: putting it inside <head>
   // before Startpage starts makes Startpage rebuild the whole page (and then clicks misbehave).

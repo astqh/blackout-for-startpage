@@ -3,7 +3,11 @@
 // @namespace    blackout-for-startpage/quick
 // @version      1.1.0
 // @license      MIT
-// @description  Small answers above Startpage results: a timer for "5 minute timer", parcel tracking buttons, a colour preview, coin flip, dice and random numbers, and currency for searches Startpage's own converter skips ("100 euros"). Each one can be switched off.
+// @homepageURL  https://github.com/astqh/blackout-for-startpage
+// @supportURL   https://github.com/astqh/blackout-for-startpage/issues
+// @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/quick.user.js
+// @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/quick.user.js
+// @description  Small answers above Startpage results. A timer for searches like 5 minute timer, parcel tracking links, colour previews, coin flip, dice, random numbers, currency for searches Startpage's converter skips, and a shortcut to Startpage's translator. Each one can be turned off.
 // @match        https://*.startpage.com/sp/search*
 // @match        https://*.startpage.com/do/search*
 // @match        https://*.startpage.com/do/dsearch*

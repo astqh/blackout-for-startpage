@@ -1,9 +1,13 @@
 // ==UserScript==
 // @name         F1 card for Startpage
 // @namespace    blackout-for-startpage/f1
-// @version      1.3.0
+// @version      1.3.1
 // @license      MIT
-// @description  Formula 1 card on Startpage: session results (practice to race) with team colours, driver initials and tyre strategy, the weekend schedule in your time zone, standings, and a next-race countdown on the home page (a full widget there when the Home script is installed).
+// @homepageURL  https://github.com/astqh/blackout-for-startpage
+// @supportURL   https://github.com/astqh/blackout-for-startpage/issues
+// @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/f1.user.js
+// @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/f1.user.js
+// @description  Formula 1 on Startpage. Session results from practice to race with team colours, driver initials and tyre strategy, the weekend schedule in your time zone, standings, and the next race on the home page.
 // @match        https://*.startpage.com/
 // @match        https://*.startpage.com/?*
 // @match        https://*.startpage.com/en/
@@ -26,7 +30,8 @@
  * "silverstone sprint 2025", "f1 standings", "constructors standings", "next f1 race", "f1 calendar".
  * Data: Jolpica-F1 (calendar, standings, qualifying/sprint/race) and OpenF1 (practice, sprint qualifying,
  * and fresh results before Jolpica updates). They only receive requests like "2026 round 17 qualifying";
- * never your search words, never cookies. Answers are cached inside Violentmonkey.
+ * never your search words, never cookies. Answers are saved inside Violentmonkey and shared by all tabs, so a
+ * finished session is fetched once (see "data" below).
  * Teams are shown by their colour and drivers by their initials; no logos or photos are loaded.
  * Options (⚙ in the card): driver initials, tyre strategy, the next race on the home page.
  */
@@ -125,11 +130,19 @@
   }
 
   // ---------------------------------------------------------------- data (cached inside Violentmonkey)
+  // Jolpica and OpenF1 are free services with rate limits, and the card and the home widget can run on every search
+  // and new tab. So every answer is saved and shared by all tabs: a session that is running or just ended for
+  // 10 minutes, a finished session with results for 30 days, the calendar and meeting lists for 6 hours, standings
+  // for 1 hour. Requests to each service are spaced out, two parts of the page asking for the same thing share one
+  // request, and after a "too many requests" answer every tab leaves that service alone for at least a minute and
+  // shows the last saved answer if there is one.
   const TTL = { schedule: 6 * 3600e3, standings: 3600e3, past: 30 * 86400e3, fresh: 10 * 60e3, meetings: 6 * 3600e3 };
-  function cacheGet(url) { const c = GM_getValue("cache", {}); const e = c[url]; return e && Date.now() < e.until ? e.data : null; }
+  const STALE = 7 * 86400e3;   // expired answers are kept this long, only for when a service is busy or unreachable
+  const cacheEntry = (url) => GM_getValue("cache", {})[url] || null;
+  function cacheGet(url) { const e = cacheEntry(url); return e && Date.now() < e.until ? e.data : null; }
   function cachePut(url, data, ttl) {
     const c = GM_getValue("cache", {}); const now = Date.now();
-    for (const k of Object.keys(c)) if (c[k].until < now) delete c[k];
+    for (const k of Object.keys(c)) if (c[k].until + STALE < now) delete c[k];
     c[url] = { data, until: now + ttl, at: now };
     const keys = Object.keys(c).sort((a, b) => c[b].at - c[a].at);
     for (const k of keys.slice(80)) delete c[k];
@@ -140,7 +153,11 @@
       GM_xmlhttpRequest({
         method: "GET", url, anonymous: true, timeout: 12000, headers: { Accept: "application/json" },
         onload: (r) => {
-          if (r.status === 429) return reject(new Error("busy"));
+          if (r.status === 429) {
+            const e = new Error("busy"), m = /^retry-after:\s*(\d+)/im.exec(r.responseHeaders || "");
+            e.limited = true; e.wait = m ? +m[1] * 1000 : 0;
+            return reject(e);
+          }
           if (r.status >= 400) return reject(new Error("HTTP " + r.status));
           try { resolve(JSON.parse(r.responseText)); } catch (e) { reject(new Error("bad data")); }
         },
@@ -148,16 +165,41 @@
       });
     });
   }
-  // OpenF1 allows about 3 requests a second: space its requests out, and retry twice when it answers "too many".
-  let of1Next = 0;
-  const of1Slot = () => { const now = Date.now(), at = Math.max(now, of1Next); of1Next = at + 400; return new Promise((r) => setTimeout(r, at - now)); };
-  async function getJSON(url, ttl) {
+  // Jolpica allows about 4 requests a second and OpenF1 about 3: space each one's requests out.
+  const GAP = { jolpica: 300, openf1: 400 }, nextAt = { jolpica: 0, openf1: 0 };
+  const serviceOf = (url) => (url.startsWith(OPENF1) ? "openf1" : "jolpica");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const slot = (sv) => { const now = Date.now(), at = Math.max(now, nextAt[sv]); nextAt[sv] = at + GAP[sv]; return sleep(at - now); };
+  const pausedUntil = (sv) => GM_getValue("pause", {})[sv] || 0;
+  function pause(sv, ms) { const p = GM_getValue("pause", {}); p[sv] = Date.now() + Math.min(3600e3, Math.max(60e3, ms)); GM_setValue("pause", p); }
+  const inFlight = new Map();
+  // ttl: how long to keep the answer, or a function that picks it from the answer.
+  function getJSON(url, ttl) {
     const hit = cacheGet(url);
-    if (hit) return hit;
+    if (hit) return Promise.resolve(hit);
+    if (!inFlight.has(url)) inFlight.set(url, load(url, ttl).finally(() => inFlight.delete(url)));
+    return inFlight.get(url);
+  }
+  async function load(url, ttl) {
+    const sv = serviceOf(url);
     for (let attempt = 0; ; attempt++) {
-      if (url.startsWith(OPENF1)) await of1Slot();
-      try { const data = await fetchJSON(url); if (ttl) cachePut(url, data, ttl); return data; }
-      catch (e) { if (e.message !== "busy" || attempt >= 2) throw e; await new Promise((r) => setTimeout(r, 1200 * (attempt + 1))); }
+      try {
+        if (Date.now() < pausedUntil(sv)) throw new Error("busy");
+        await slot(sv);
+        const data = await fetchJSON(url);
+        const keep = typeof ttl === "function" ? ttl(data) : ttl;
+        if (keep) cachePut(url, data, keep);
+        return data;
+      } catch (e) {
+        if (e.limited) {
+          // A short burst limit clears in a second or two: try twice more. Otherwise leave the service alone.
+          if (attempt < 2 && e.wait <= 5000) { await sleep(Math.max(e.wait, 1200 * (attempt + 1))); continue; }
+          pause(sv, e.wait);
+        }
+        const old = (e.message === "busy" || e.message === "offline") && cacheEntry(url);
+        if (old) return old.data;
+        throw e;
+      }
     }
   }
   const seasonSchedule = (season) => getJSON(JOLPICA + season + ".json?limit=40", TTL.schedule).then((d) => d.MRData.RaceTable.Races);
@@ -196,8 +238,8 @@
   async function jolpicaSession(ev, code) {
     const kind = code === "Q" ? "qualifying" : code === "S" ? "sprint" : "results";
     const url = JOLPICA + ev.season + "/" + ev.round + "/" + kind + ".json?limit=40";
-    const done = Date.now() > ev.last + 6 * 3600e3;
-    const d = await getJSON(url, done ? TTL.past : TTL.fresh);
+    const ses = ev.sessions.find((x) => x.code === code), done = Date.now() > (ses ? ses.end : ev.last) + 6 * 3600e3;
+    const d = await getJSON(url, (a) => (done && a.MRData.RaceTable.Races.length ? TTL.past : TTL.fresh));
     const race = d.MRData.RaceTable.Races[0];
     if (!race) return null;
     const list = race.QualifyingResults || race.SprintResults || race.Results || [];
@@ -234,7 +276,7 @@
     const ses = await openf1SessionInfo(ev, code);
     if (!ses) return null;
     const done = Date.now() > Date.parse(ses.date_end) + 6 * 3600e3;
-    const list = await getJSON(OPENF1 + "stints?session_key=" + ses.session_key, done ? TTL.past : TTL.fresh);
+    const list = await getJSON(OPENF1 + "stints?session_key=" + ses.session_key, (a) => (done && a.length ? TTL.past : TTL.fresh));
     if (!list.length) return null;
     const by = {}; let laps = 0;
     list.slice().sort((x, y) => x.stint_number - y.stint_number).forEach((st) => {
@@ -253,8 +295,8 @@
     if (!ses) return null;
     const done = Date.now() > Date.parse(ses.date_end) + 6 * 3600e3;
     const [res, drivers] = await Promise.all([
-      getJSON(OPENF1 + "session_result?session_key=" + ses.session_key, done ? TTL.past : TTL.fresh),
-      getJSON(OPENF1 + "drivers?session_key=" + ses.session_key, TTL.past),
+      getJSON(OPENF1 + "session_result?session_key=" + ses.session_key, (a) => (done && a.length ? TTL.past : TTL.fresh)),
+      getJSON(OPENF1 + "drivers?session_key=" + ses.session_key, (a) => (a.length ? TTL.past : TTL.fresh)),
     ]);
     if (!res.length) return null;
     const byNum = {}; drivers.forEach((d) => { byNum[d.driver_number] = d; });

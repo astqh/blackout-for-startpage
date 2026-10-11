@@ -1,18 +1,23 @@
 # Third-party data, services and notices
 
-The scripts contain no third-party code or images. They call these services from your browser, only for the
-features listed:
+The scripts contain no code or images from anyone else. They contact these services from your browser, only for
+the features listed.
 
 | Service | Used by | Data licence and terms |
 |---|---|---|
-| [Jolpica-F1](https://github.com/jolpica/jolpica-f1) | F1 card | Data: CC BY-NC-SA 4.0. Free for non-commercial use; please respect its rate limits. |
-| [OpenF1](https://openf1.org) | F1 card | Data: CC BY-NC-SA 4.0. Free for non-commercial use; independent, not affiliated with Formula 1. |
+| [Jolpica-F1](https://github.com/jolpica/jolpica-f1) | F1 card | Data: CC BY-NC-SA 4.0. Free for non-commercial use. It asks users to respect its rate limits, so the F1 card saves answers and spaces out its requests. |
+| [OpenF1](https://openf1.org) | F1 card | Data: CC BY-NC-SA 4.0. Free for non-commercial use. Independent and not connected to Formula 1. |
 | [Open-Meteo](https://open-meteo.com) | Home widgets (weather) | Data: CC BY 4.0 ("Weather data by Open-Meteo.com", shown in the widget). Free for non-commercial use. |
 | [Frankfurter](https://frankfurter.dev) | Home widgets, Quick answers (currency) | Open-source service publishing European Central Bank reference rates. |
-| Your AI provider | Instant Answer | Whichever you choose and configure (OpenCode Go, or a server on your own computer). Its own terms apply. |
+| Your AI provider | Instant Answer | Whichever you choose and set up. OpenCode Go, or an app on your own computer. Its own terms apply. |
 
-The F1 card shows "Data: Jolpica-F1, OpenF1" under its results. This project is free and non-commercial; anyone
-reusing it commercially must check these services' terms first.
+The F1 card names its data source under its results. This project is free and non-commercial. Anyone reusing it
+commercially must check these services' terms first.
+
+## Demo and screenshots
+
+The demo page and the screenshots use only made-up results, answers, weather and exchange rates written for this
+project. Sites appear as coloured letters, not their logos. The demo contacts no outside service.
 
 ## Icons
 

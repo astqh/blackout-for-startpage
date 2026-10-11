@@ -3,7 +3,11 @@
 // @namespace    blackout-for-startpage/instant-answer
 // @version      1.3.0
 // @license      MIT
-// @description  Instant Answer above Startpage results: a short AI answer built from the results on the page, plus one-page summaries from the Tweaks script's ⋮ menu. Off until you turn it on. Uses OpenCode Go or your local model.
+// @homepageURL  https://github.com/astqh/blackout-for-startpage
+// @supportURL   https://github.com/astqh/blackout-for-startpage/issues
+// @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/instant-answer.user.js
+// @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/instant-answer.user.js
+// @description  A short answer above Startpage results, written from the results on the page. Can also summarize one page from the ⋮ menu. Off until you turn it on. Uses OpenCode Go or your local model.
 // @match        https://*.startpage.com/sp/search*
 // @match        https://*.startpage.com/do/search*
 // @match        https://*.startpage.com/do/dsearch*
