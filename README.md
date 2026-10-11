@@ -32,12 +32,16 @@ You need two free browser add-ons. [Stylus](https://github.com/openstyles/stylus
 On Chrome, Brave or Edge, open your extensions page, click **Details** under Violentmonkey and turn on
 **Allow User Scripts**. Without it the scripts do nothing. Firefox doesn't need this.
 
-Then pick one of two ways.
+Then install in **one** of these two ways. Both give you the same add-ons.
 
-**1. Install page.** This is the easiest. Open the [install page](https://astqh.github.io/blackout-for-startpage/)
-and click **Install** next to each part you want. Stylus or Violentmonkey opens a page where you confirm.
+### Install page (easiest)
 
-**2. Download for Windows.** Use this if you'd rather install from files on your own computer.
+Open the [install page](https://astqh.github.io/blackout-for-startpage/) and click **Install** next to each part
+you want. Stylus or Violentmonkey opens a page where you confirm.
+
+### Or download for Windows
+
+For installing from files on your own computer.
 
 1. Download the zip from the [latest release](https://github.com/astqh/blackout-for-startpage/releases/latest)
    and unzip it.
