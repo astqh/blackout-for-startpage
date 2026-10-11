@@ -1,0 +1,10 @@
+! Optional uBlock Origin filters for Startpage (paste into uBlock Origin → Dashboard → My filters → Apply changes).
+! They stop Startpage's own usage statistics and its map widget's direct location lookup. Search, ads already
+! handled by your lists, and the map itself keep working (the map is shown through Startpage).
+!
+! Usage statistics: scroll depth, theme, whether you block ads, page timings
+||startpage.com/clev^
+! Page-speed measurements
+||startpage.com/perf^
+! The map widget looking up your location at MapQuest directly
+||graphql.aws.mapquest.com^

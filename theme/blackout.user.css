@@ -1,0 +1,178 @@
+/* ==UserStyle==
+@name         Blackout for Startpage
+@namespace    blackout-for-startpage
+@version      1.2.0
+@license      MIT
+@description  True-black OLED theme for Startpage with a switchable accent colour and results position. Hides ads and promos. Uses only fonts already on the PC.
+@preprocessor default
+@var select accent "Accent colour" {
+  "Soft blue*": "#a3c4ff",
+  "Lilac": "#c9b6ff",
+  "Amber gold": "#f0c674"
+}
+@var select layout "Results position (wide windows)" {
+  "Left, Startpage's own": "0",
+  "Centre left*": "0.6",
+  "Centred": "1"
+}
+==/UserStyle== */
+
+@-moz-document domain("startpage.com") {
+  /* ---------- Blackout: true black for OLED. The accent comes from the theme's colour menu (--accent) ---------- */
+  :root {
+    --sp-bg: #000000; --sp-surface: #0b0b0d; --sp-surface-2: #141417; --sp-field: #0b0b0d;
+    --sp-line: #1a1a1e; --sp-line-strong: #2a2a30;
+    --sp-ink: #e6e6e9; --sp-ink-2: #a5a5ad; --sp-muted: #6e6e77;
+    --sp-link: var(--accent, #a3c4ff); --sp-accent: var(--accent, #a3c4ff);
+    --sp-visited: color-mix(in oklab, var(--accent, #a3c4ff) 62%, #6b6b78);
+    --sp-select: color-mix(in srgb, var(--accent, #a3c4ff) 28%, transparent);
+    --sp-url: #7c8a84; --sp-favicon: #e6e6e9;
+    --sp-font: "Segoe UI", system-ui, sans-serif; --sp-font-title: "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+    --sp-mono: Consolas, ui-monospace, monospace;
+    --sp-radius: 12px;
+  }
+  /* ---------- results position on wide windows (web results only) ----------
+     Startpage starts the search box, the tabs and the results 133 px from the left at every width. Here they move
+     right together by a share (--layout: 0, 0.6 or 1) of the free space, so 1 centres results + sidebar (~1130 px).
+     The logo stays where it is. Windows narrower than 1200 px keep Startpage's layout. */
+  @media (min-width: 1200px) {
+    .Layout:has(.w-gl) { --sp-shift: max(0px, calc((50vw - 700px) * var(--layout, 0.6))); }
+    .Layout:has(.w-gl) #header-search-form { margin-left: var(--sp-shift) !important; }
+    .Layout:has(.w-gl) nav.inline-nav, .Layout:has(.w-gl) #filters-container .filters, #main:has(.w-gl) { margin-left: calc(133px + var(--sp-shift)) !important; }
+  }
+
+  /* ---------- base: shared structure, colours come from the --sp-* tokens ---------- */
+
+  /* page ground and text */
+  html, body, #root, .themeProvider, .Layout { background: var(--sp-bg) !important; color: var(--sp-ink) !important; }
+  body :not(svg):not(svg *) { font-family: var(--sp-font) !important; }
+  ::selection { background: var(--sp-select) !important; color: var(--sp-ink) !important; }
+
+  /* wrappers that paint their own background */
+  main, header, footer, section, #main, #sidebar, .w-gl, .result, .inline-nav, .filters, #filters-container, #search-filters,
+  .header-inner-container, .top-nav-container, .pagination-container, .layout-web, .home, .hero, .search-home, .home-header {
+    background-color: transparent !important;
+  }
+  header { background: var(--sp-bg) !important; border-bottom: 1px solid var(--sp-line) !important; box-shadow: none !important; }
+
+  /* search box */
+  .search-form-container { background: var(--sp-field) !important; border: 1px solid var(--sp-line-strong) !important; border-radius: var(--sp-radius) !important; box-shadow: none !important; }
+  .search-form-container:focus-within { border-color: var(--sp-accent) !important; box-shadow: 0 0 0 1px var(--sp-accent) !important; }
+  .search-form-input { color: var(--sp-ink) !important; background: transparent !important; caret-color: var(--sp-accent) !important; }
+  .search-form-input::placeholder { color: var(--sp-muted) !important; }
+  .btns, .x-btn-container { border-color: var(--sp-line) !important; }
+  .search-btn svg, .x-btn svg { color: var(--sp-muted) !important; }
+
+  /* category tabs and filters */
+  .inline-nav a, .inline-nav button, .categories a, .categories button { color: var(--sp-muted) !important; }
+  .inline-nav a:hover, .categories a:hover { color: var(--sp-ink) !important; }
+  .filter-toggle svg, .filters svg { color: var(--sp-muted) !important; }
+  .dropdown-button, .dropdown-button-text, .display-text, .qadf-filter-text, .with_date-filter-text, .search-filter-time__dropdown { color: var(--sp-ink-2) !important; }
+  .privacy-indicator-button { background: var(--sp-surface) !important; border: 1px solid var(--sp-line) !important; color: var(--sp-ink) !important; }
+  .privacy-indicator-text { color: var(--sp-ink) !important; }
+  .dropdown-content, .hamburger-drawer, .modal, .privacy-tooltip, .instruction-modal { background: var(--sp-surface) !important; color: var(--sp-ink) !important; border-color: var(--sp-line) !important; }
+
+  /* results */
+  .result { border: 0 !important; box-shadow: none !important; }
+  .wgl-site-title, .wgl-site-title .link-text { color: var(--sp-ink-2) !important; }
+  .wgl-display-url, .wgl-display-url * { color: var(--sp-url) !important; font-family: var(--sp-mono) !important; font-size: 12.5px !important; }
+  .result-title, .result-title .wgl-title { color: var(--sp-link) !important; font-family: var(--sp-font-title) !important; }
+  .result-title:visited, .result-title:visited .wgl-title { color: var(--sp-visited) !important; }
+  .result-title:hover .wgl-title { text-decoration: underline !important; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  .description { color: var(--sp-ink-2) !important; }
+  .description b { color: var(--sp-ink) !important; }
+  .anonymous-view-link a, .anonymous-view-link-text, .anonymous-view-link svg { color: var(--sp-muted) !important; }
+  .anonymous-view-link a:hover .anonymous-view-link-text { color: var(--sp-accent) !important; }
+  .w-gl-attribution, .w-gl-attribution * { color: var(--sp-muted) !important; }
+
+  /* page numbers */
+  .pagination button, .pagination a { background: transparent !important; color: var(--sp-ink-2) !important; border-color: var(--sp-line-strong) !important; }
+  .pagination button:hover, .pagination a:hover { border-color: var(--sp-accent) !important; color: var(--sp-ink) !important; }
+
+  /* home page: Startpage's own colour tokens */
+  .home, .home[data-theme] {
+    --background: var(--sp-bg) !important; --foreground: var(--sp-ink) !important; --card: var(--sp-surface) !important;
+    --primary: var(--sp-accent) !important; --muted: var(--sp-surface) !important; --muted-foreground: var(--sp-muted) !important;
+    --accent: var(--sp-surface-2) !important; --border: var(--sp-line) !important; --input-background: var(--sp-field) !important;
+    --footer-text: var(--sp-muted) !important; --radius: var(--sp-radius) !important;
+    background: var(--sp-bg) !important;
+  }
+  .home-header { backdrop-filter: none !important; }
+  .startpage-hero-tagline { color: var(--sp-muted) !important; }
+  .footer-container a, .nav-link-container a { color: var(--sp-muted) !important; }
+
+  /* declutter: promos, install prompts, feedback tab */
+  .middle-promo-row, .extension-and-app-middle-promo, .home-hero-down-arrow, .hide-promo-container, #home-below-the-fold-container,
+  .sticky-nav-get-extension-cta, .nav-subscription-wrapper, .feedback-button-container, .extension-onboarding-serp-toast,
+  .windows-keep-it-prompt, .hamburger-menu-app-promo .browser-extension-container { display: none !important; }
+
+  /* icons and logo: Startpage hard-codes a light fill for its dark mode */
+  .hamburger-button, .close-btn, .close-button, .x-btn, .search-btn { color: var(--sp-ink-2) !important; }
+  .chevron path, .dropdown-button svg path[fill="#ebecf7"] { fill: var(--sp-ink-2) !important; }
+  svg.startpage-logo [fill]:not([fill^="url"]):not([fill="none"]) { fill: var(--sp-logo, var(--sp-ink)) !important; }
+
+  /* tabs: Startpage marks the current one only by underline colour, so mark it from the page's own category */
+  .header-nav-item-text { color: var(--sp-muted) !important; }
+  .header-nav-item-button { border-bottom-color: transparent !important; }
+  .header-nav-item-button:hover .header-nav-item-text { color: var(--sp-ink) !important; }
+  body:has(#search input[name="cat"][value="web"]) .vertical-link-web,
+  body:has(#search input[name="cat"][value="images"]) .vertical-link-images,
+  body:has(#search input[name="cat"][value="video"]) .vertical-link-video,
+  body:has(#search input[name="cat"][value="news"]) .vertical-link-news,
+  body:has(#search input[name="cat"][value="shopping"]) .vertical-link-shopping,
+  body:has(#search input[name="cat"][value="maps"]) .vertical-link-maps {
+    & .header-nav-item-button { border-bottom-color: var(--sp-accent) !important; }
+    & .header-nav-item-text { color: var(--sp-ink) !important; }
+  }
+
+  /* Private Search button and side menu */
+  .dropdown-button { background: var(--sp-surface) !important; border: 1px solid var(--sp-line) !important; border-radius: var(--sp-pill, 999px) !important; }
+  .dropdown-button-text { color: var(--sp-ink) !important; }
+  .hamburger-drawer .link-text, .settings-button .link-text { color: var(--sp-ink) !important; }
+  .hamburger-subsection-title { color: var(--sp-muted) !important; }
+  .skip-to-main-content-link { background: var(--sp-accent) !important; color: var(--sp-bg) !important; }
+  .favicon-container { background: var(--sp-favicon, #ffffff) !important; }
+
+  /* ads: Google's ad box is a separate embedded page the theme cannot recolour */
+  .gcsa-container, #gcsa-top, #gcsa-bottom, .sidebar-sxpr .gcsa-container { display: none !important; }
+
+  /* home footer decoration */
+  .footer-container img[src*="curl-footer"] { display: none !important; }
+  .footer-container, .footer-container > div, .footer-container footer { background: var(--sp-bg) !important; }
+
+  /* Blackout type and spacing */
+  .result-title .wgl-title { font-weight: 600 !important; font-size: 19px !important; letter-spacing: -.005em; }
+  .result { padding-block: 6px !important; }
+
+  /* Anonymous View mask icon: Startpage hard-codes its own purple */
+  .anonymous-view-link svg [fill]:not([fill="none"]) { fill: currentColor !important; }
+  .anonymous-view-link svg [stroke]:not([stroke="none"]) { stroke: currentColor !important; }
+
+  /* News, Videos and Images tabs */
+  main a h3, h3.title { color: var(--sp-link) !important; font-family: var(--sp-font-title) !important; }
+  main a:visited h3, a:visited h3.title { color: var(--sp-visited) !important; }
+  main a h3 b, h3.title b { color: inherit !important; }
+  main p.title { color: var(--sp-ink) !important; }
+  [class$="-filter-text"], [class*="-filter-text "] { color: var(--sp-ink-2) !important; }
+  main .source, main .date, main .stats, main .views, main .publisher, .yt-results-provided-by { color: var(--sp-muted) !important; }
+  main .publisher + span, .stats + * span { color: var(--sp-ink-2) !important; }
+  .play-btn, .duration { background: rgba(0, 0, 0, .78) !important; color: var(--sp-ink) !important; }
+  .image-result { background: transparent !important; }
+
+  /* buttons the theme colours: drop the browser's built-in button look so the colours always show */
+  .dropdown-button, .privacy-indicator-button, .pagination button, .header-nav-item-button, .hamburger-button, .search-btn, .x-btn { appearance: none !important; }
+
+  /* "Did you mean" spelling suggestion */
+  .ss-gl-result { background: var(--sp-surface) !important; border-color: var(--sp-line-strong) !important; color: var(--sp-ink) !important; }
+  .ss-gl-result a, .ss-gl-result a *, .ss-gl-result i, .ss-gl-result b { color: var(--sp-link) !important; }
+
+  /* page footer on every page: wave image, filler strip, footer itself */
+  img[src*="curl-footer"] { display: none !important; }
+  div:has(> img[src*="curl-footer"]), div:has(+ footer[data-testid="site-footer"]), footer[data-testid="site-footer"] { background: var(--sp-bg) !important; }
+  footer[data-testid="site-footer"] { border-top: 1px solid var(--sp-line) !important; }
+  footer[data-testid="site-footer"] p, footer[data-testid="site-footer"] .link-text, footer[data-testid="site-footer"] a { color: var(--sp-muted) !important; }
+  footer[data-testid="site-footer"] a:hover .link-text, footer[data-testid="site-footer"] a:hover { color: var(--sp-ink) !important; }
+  footer[data-testid="site-footer"] a:has(svg) { background: var(--sp-surface-2) !important; color: var(--sp-ink-2) !important; }
+  footer[data-testid="site-footer"] a:has(svg):hover { background: var(--sp-line-strong) !important; }
+
+}

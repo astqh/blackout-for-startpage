@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install Blackout for Startpage</title>
+<style>
+:root { color-scheme: dark; --bg: #000; --panel: #0b0b0d; --line: #2a2a30; --ink: #e6e6e9; --ink-2: #a5a5ad; --muted: #6e6e77; --accent: #a3c4ff;
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; --mono: Consolas, ui-monospace, "SF Mono", monospace; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font); padding-inline: 20px; padding-block: 36px 48px; }
+main { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+h1 { margin: 0; font-size: 26px; font-weight: 600; }
+p { margin: 0; color: var(--ink-2); max-width: 66ch; }
+a { color: var(--accent); }
+.note { border-left: 3px solid var(--accent); padding: 8px 14px; background: var(--panel); border-radius: 0 10px 10px 0; color: var(--ink-2); }
+.note b { color: var(--ink); }
+ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: step; }
+li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); counter-increment: step; }
+li::before { content: counter(step); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; color: var(--accent); border: 1px solid var(--line); }
+li h2 { margin: 0; font-size: 16px; font-weight: 600; }
+li p { font-size: 13.5px; }
+li small { display: block; font: 12px var(--mono); color: var(--muted); }
+a.btn { display: inline-block; padding: 8px 18px; border-radius: 999px; background: var(--accent); color: #000; font-weight: 600; text-decoration: none; white-space: nowrap; }
+a.btn:hover { filter: brightness(1.1); }
+a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+code { font: 13px var(--mono); color: var(--ink); }
+footer { color: var(--muted); font-size: 13px; }
+@media (max-width: 560px) { li { grid-template-columns: 30px minmax(0, 1fr); } li a.btn { grid-column: 2; justify-self: start; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Install Blackout for Startpage</h1>
+  <p>A true-black theme and a few userscripts for <a href="https://www.startpage.com/">Startpage</a>. Install only the parts you want. Click <b>Install</b>: your add-on opens its own page asking you to confirm. Clicking Install again later updates that part, and the add-ons also check for new versions by themselves.</p>
+  <div class="note"><b>You need:</b> <a href="https://github.com/openstyles/stylus">Stylus</a> for the theme, and <a href="https://violentmonkey.github.io/">Violentmonkey</a> (or Tampermonkey) for the scripts.<br>
+    <b>Chrome, Brave, Edge:</b> open the add-on's details in your browser's extensions page and turn on <b>Allow User Scripts</b>, or the scripts silently do nothing.</div>
+  <ol>
+    <li><div><h2>Blackout theme</h2><p>True-black look, three accent colours, results moved centre-left on wide screens (or left or centred).</p><small>theme/blackout.user.css · Stylus</small></div><a class="btn" href="theme/blackout.user.css">Install</a></li>
+    <li><div><h2>Tweaks</h2><p>Results open in the same tab, no ad-blocker banner, no Private Search badge. A ⋮ menu on every result (summary, Anonymous View, copy link, pin or hide a site) and keyboard keys.</p><small>scripts/tweaks.user.js</small></div><a class="btn" href="scripts/tweaks.user.js">Install</a></li>
+    <li><div><h2>Home widgets</h2><p>Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race under the home-page search box. Turn each on or off and drag them around.</p><small>scripts/home.user.js</small></div><a class="btn" href="scripts/home.user.js">Install</a></li>
+    <li><div><h2>Instant Answer</h2><p>A short AI answer above your results, and one-page summaries from the ⋮ menu. Off until you turn it on with your own provider: OpenCode Go or a model on your PC.</p><small>scripts/instant-answer.user.js</small></div><a class="btn" href="scripts/instant-answer.user.js">Install</a></li>
+    <li><div><h2>F1 card</h2><p>Formula 1 results with tyre strategy, standings and the weekend schedule in your time zone, and the next race on the home page.</p><small>scripts/f1.user.js</small></div><a class="btn" href="scripts/f1.user.js">Install</a></li>
+    <li><div><h2>Quick answers</h2><p>Timer, parcel tracking buttons, colour preview, coin, dice, random numbers, currency, and translation searches sent to Startpage's own translator.</p><small>scripts/quick.user.js</small></div><a class="btn" href="scripts/quick.user.js">Install</a></li>
+  </ol>
+  <footer>Not affiliated with Startpage, Formula 1, the FIA or any team. MIT licence. What each part sends and to whom is listed in the README.</footer>
+</main>
+</body>
+</html>
