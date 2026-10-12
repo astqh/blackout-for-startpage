@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         F1 card for Startpage
 // @namespace    blackout-for-startpage/f1
-// @version      1.3.1
+// @version      1.3.2
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -763,22 +763,22 @@ b { color: var(--sp-ink, #fff); font-weight: 600; }
   // With the Home script installed this becomes its "Formula 1" widget instead: next race, place, countdown and the
   // weekend's times in your time zone.
   const WIDGET_CSS = `
-:host { all: initial; display: block; font: 13.5px/1.45 var(--sp-font, "Segoe UI", system-ui, sans-serif); color: var(--sp-ink-2, #c8c8d0); }
+:host { all: initial; display: block; font: inherit; font-size: inherit; line-height: 1.45; font-family: var(--sp-font, "Segoe UI", system-ui, sans-serif); color: var(--home-ink2, var(--sp-ink-2, #c8c8d0)); }
 * { box-sizing: border-box; }
-.top { display: flex; align-items: center; gap: 8px; }
-.mark { flex: none; display: block; font: 800 10px/1 var(--sp-font, sans-serif); color: var(--sp-accent, #6677fb); border: 1.5px solid currentColor; border-radius: 4px; padding: 2px 4px; }
-button.gp { all: unset; cursor: pointer; font-weight: 600; font-size: 15px; color: var(--sp-ink, #fff); }
+.top { display: flex; align-items: center; gap: .6em; }
+.mark { flex: none; display: block; font: 800 .72em/1 var(--sp-font, sans-serif); color: var(--home-acc, var(--sp-accent, #6677fb)); border: 1.5px solid currentColor; border-radius: .3em; padding: .15em .3em; }
+button.gp { all: unset; cursor: pointer; font-weight: 600; font-size: 1.1em; color: var(--home-ink, var(--sp-ink, #fff)); }
 button.gp:hover { text-decoration: underline; }
-button.gp:focus-visible, a:focus-visible { outline: 2px solid var(--sp-accent, #6677fb); outline-offset: 2px; border-radius: 4px; }
-.place { color: var(--sp-muted, #8a8a94); font-size: 12.5px; margin: 1px 0 8px; }
-.state { color: var(--sp-ink, #fff); font-weight: 600; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
-.state a { color: var(--sp-accent, #6677fb); font-weight: 400; }
+button.gp:focus-visible, a:focus-visible { outline: 2px solid var(--home-acc, var(--sp-accent, #6677fb)); outline-offset: 2px; border-radius: 4px; }
+.place { color: var(--home-muted, var(--sp-muted, #8a8a94)); font-size: .92em; margin: 1px 0 .6em; }
+.state { color: var(--home-ink, var(--sp-ink, #fff)); font-weight: 600; margin-bottom: .45em; font-variant-numeric: tabular-nums; }
+.state a { color: var(--home-acc, var(--sp-accent, #6677fb)); font-weight: 400; }
 .live { color: #ff4d4d; }
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-td { padding: 2px 0; white-space: nowrap; }
-td.w { color: var(--sp-muted, #8a8a94); padding-left: 10px; text-align: right; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: inherit; color: inherit; }
+td { padding: .15em 0; white-space: nowrap; }
+td.w { color: var(--home-muted, var(--sp-muted, #8a8a94)); padding-left: .75em; text-align: right; }
 tr.done td { opacity: .5; }
-tr.next td:first-child, tr.now td:first-child { color: var(--sp-accent, #6677fb); font-weight: 600; }
+tr.next td:first-child, tr.now td:first-child { color: var(--home-acc, var(--sp-accent, #6677fb)); font-weight: 600; }
 `;
   let homeStarted = false;
   async function homeCountdown() {

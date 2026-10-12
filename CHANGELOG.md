@@ -3,6 +3,32 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.1.0 · 11 October 2026
+
+Tested on Startpage as it was on 11 October 2026. The home widgets and the F1 widget on the live site in Firefox with
+Violentmonkey and Stylus, and in the demo in Chromium. Instant Answer in Firefox with Violentmonkey against a stand-in AI server, including a
+real Startpage search made by the AI. Not yet tested with a real AI service.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.0 |
+| Tweaks | 1.1.0 |
+| Home widgets | 1.1.0 |
+| Instant Answer | 2.0.0 |
+| F1 card | 1.3.2 |
+| Quick answers | 1.1.0 |
+
+- Home widgets can be resized. Text and spacing follow each widget's size, and narrow windows stack them.
+- Home widgets have a Look panel for your own accent, background, search bar and widget colours, a background
+  picture and a glass look.
+- Instant Answer works with any OpenAI-compatible service, picks a fast or a stronger model for each question, and
+  has a thinking setting.
+- Instant Answer can continue an answer as a conversation that searches Startpage and reads pages. Conversations are
+  deleted when closed unless you keep them, and can be downloaded as Markdown.
+- The F1 widget on the home page scales with its size and follows the widget colours.
+
+Page parts the scripts rely on are the same as in 1.0.1.
+
 ## 1.0.1 · 11 October 2026
 
 Tested on Startpage as it was on 11 October 2026, in Firefox with Violentmonkey and Stylus. The results page and

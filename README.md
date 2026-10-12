@@ -17,8 +17,8 @@ Not made by or connected to Startpage, Formula 1, the FIA or any team.
 |---|---|---|
 | **Blackout theme** | Black background, three accent colours, results moved a little toward the centre on wide screens. Hides ads and promos. | Nothing |
 | **Tweaks** | Results open in the same tab. The ad blocker banner and the Private Search badge are hidden to reduce clutter. Every result gets a ⋮ menu, and there are keyboard keys. | Nothing |
-| **Home widgets** | Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race under the search box on the home page. | Weather sends the city you type once, then only its map position, to Open-Meteo. Currency asks Frankfurter for the day's rates. |
-| **Instant Answer** | A short answer above your results, written from those results. Off until you turn it on. | Only when it's on, and only to the AI service you pick. It gets your search and the titles and descriptions of the results. |
+| **Home widgets** | Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race under the search box on the home page. Resize them, and pick your own colours or a picture. | Weather sends the city you type once, then only its map position, to Open-Meteo. Currency asks Frankfurter for the day's rates. |
+| **Instant Answer** | A short answer above your results, written from those results. Continue it as a conversation that can search and read pages. Off until you turn it on. | Only when it's on, and only to the AI service you pick. It gets your search and the titles and descriptions of the results. In a conversation its searches go to Startpage and the pages it reads are fetched from the sites. |
 | **F1 card** | Formula 1 results, tyre strategy, standings and the race weekend schedule in your time zone. | Requests like "2026 round 17 qualifying" to Jolpica-F1 and OpenF1. Never your search. |
 | **Quick answers** | Timer, parcel tracking links, colour preview, coin flip, dice, random numbers, currency and a shortcut to Startpage's translator. | Currency only. It asks Frankfurter for the day's rates. |
 
@@ -61,8 +61,8 @@ themselves.
 - **⋮ menu.** Click ⋮ next to a result's address to summarize the page, open it in Anonymous View, copy the link,
   or pin or hide that site.
 - **Keys.** `j` and `k` move between results, `Enter` opens one and `?` lists all keys.
-- **Home widgets.** Click **Customize** under the widgets to add, hide, move or set them up.
-- **Instant Answer.** Click **Turn on Instant Answer** above your results, then pick a service.
+- **Home widgets.** Click **Customize** under the widgets to add, hide, move, resize or set them up. **Look** sets your colours.
+- **Instant Answer.** Click **Turn on Instant Answer** above your results, then pick a service. The expand button next to an answer continues it as a conversation.
 - **F1 card.** Search things like `monza qualifying`, `f1 standings` or `next f1 race`.
 - **Quick answers.** Search `5 minute timer`, `#a3c4ff`, `flip a coin`, `roll 2d6` or `100 euros`.
 - **Switches.** Click the Violentmonkey icon on a Startpage tab. Each script lists its on and off switches there.
@@ -121,13 +121,36 @@ and timer can be added. Under **Customize** you can set the clock's cities, your
 shortcuts and your currency. Shortcuts show a coloured letter, so no site is contacted until you click one. Notes
 stay in your browser. Currency, °C or °F and the 12 or 24 hour clock start from your browser's language setting.
 
+- **Resize.** In Customize, drag the corner at the bottom right of a widget. Across it snaps to a third, half, two
+  thirds or the full width. Down sets its height. Text and spacing grow and shrink with the widget. Arrow keys on
+  the corner work too, and a double-click resets it.
+- **Look.** In Customize, click **Look** to pick your own accent colour, and colours for the background, the search
+  bar and the widgets. You can also use a picture from your computer as the background, and turn on **Glass** for
+  see-through widgets and search bar. Text switches between dark and light by itself so it stays readable. The
+  accent shows on every Startpage page, the rest on the home page. The picture stays in your browser.
+
 ### Instant Answer
 
-Pick one of two services.
+Pick where the answers come from.
 
-- **OpenCode Go** with your own key.
-- **A model app on your computer** such as LM Studio, Ollama or llama.cpp. Everything stays on your computer. It
-  uses whichever model is loaded.
+- **An online AI service** that works like the OpenAI API, with your own key. OpenCode Go, OpenAI, OpenRouter,
+  Groq, Mistral and DeepSeek are in the list, and any other address works too.
+- **Your computer**, with a model app such as LM Studio, Ollama or llama.cpp. Everything stays on your computer. It
+  uses whichever model is loaded and never switches it.
+
+**Models.** With **Choose for me**, short answers go to a fast model and harder questions and conversations go to a
+stronger one. Both are picked from the service's own model list unless you pick them yourself. You can also use one
+model for everything.
+
+**Thinking.** Quick, Automatic or Thorough. Quick is fastest. Automatic thinks a little for short answers and more
+for harder questions. If a service doesn't accept a setting, Instant Answer leaves it out for that model and asks
+again.
+
+**Conversations.** The expand button next to an answer opens a side panel with the answer and your follow-ups.
+There the AI can search Startpage and read result pages when it needs more, at most three searches and three pages
+per reply, and it cites what it found. It follows a short instruction file you can replace in settings. A
+conversation is deleted when you close it, unless you keep that one or turn on **Keep conversations** in settings.
+You can also download one as a Markdown file. Follow-ups under an answer are deleted after 30 minutes without use.
 
 By default it answers questions and longer searches by itself and shows an **Ask AI** button for the rest. You can
 change that to only when you click, or every search. It stays out of the way when Startpage shows its own answer

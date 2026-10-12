@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Home widgets for Startpage
 // @namespace    blackout-for-startpage/home
-// @version      1.0.0
+// @version      1.1.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
 // @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/home.user.js
 // @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/home.user.js
-// @description  Widgets under the search box on the Startpage home page. Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race. Turn each one on or off and drag them into any order.
+// @description  Widgets under the search box on the Startpage home page. Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race. Turn each one on or off, drag them into any order and resize them. Pick your own accent, background, search bar and widget colours, with an optional glass look.
 // @match        https://*.startpage.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -16,7 +16,7 @@
 // @connect      api.open-meteo.com
 // @connect      geocoding-api.open-meteo.com
 // @connect      api.frankfurter.dev
-// @run-at       document-end
+// @run-at       document-start
 // @noframes
 // ==/UserScript==
 
@@ -27,14 +27,16 @@
  *   - Currency: the currency codes go to Frankfurter (European Central Bank rates), at most every 6 hours.
  *   - Everything else (clock, shortcuts, notes, calendar, timer) stays in this browser.
  * Shortcuts show a coloured letter instead of the site's icon, so no site is contacted until you click it.
- * Customize (under the widgets) turns widgets on and off and lets you drag them into any order.
+ * Customize (under the widgets) turns widgets on and off, lets you drag them into any order and resize them by their
+ * corner, and has Look: your own accent colour (every Startpage page), and page, search bar and widget colours, a
+ * picture and a glass look (the home page). The picture stays in this browser.
  * Other scripts can add a widget: the F1 script adds "Formula 1" (its next race and weekend times).
  */
 
 (function () {
   "use strict";
   if (window.top !== window.self) return;
-  if (!/^\/([a-z]{2}\/?)?$/i.test(location.pathname)) return;       // the home page only
+  const isHome = /^\/([a-z]{2}\/?)?$/i.test(location.pathname);   // widgets on the home page; your accent on every page
 
   // ---------------------------------------------------------------- settings
   // Defaults follow the browser's language setting (e.g. "en-CA" → Canada → CAD, Celsius).
@@ -57,16 +59,88 @@
     notes: "",
     currency: { base: localCurrency(), list: ["USD", "EUR", "GBP", "CAD"].filter((c) => c !== localCurrency()).slice(0, 3), amount: 1 },
     timer: { minutes: 5, endAt: 0, left: 0 },
+    size: {},                                             // per widget: { w: columns out of 6, h: height in px, 0 = fits its content }
+    look: { accent: "", page: "", search: "", widget: "", glass: false, imgLight: false },   // "" = the theme's own colour
   };
   function load() {
     const s = Object.assign({}, DEFAULTS, GM_getValue("settings", {}));
-    for (const k of ["on", "clock", "weather", "currency", "timer"]) s[k] = Object.assign({}, DEFAULTS[k], s[k]);
+    for (const k of ["on", "clock", "weather", "currency", "timer", "size", "look"]) s[k] = Object.assign({}, DEFAULTS[k], s[k]);
     s.order = s.order.filter((id, i) => s.order.indexOf(id) === i).concat(DEFAULTS.order.filter((id) => !s.order.includes(id)));
     if (!Array.isArray(s.shortcuts)) s.shortcuts = DEFAULTS.shortcuts.slice();
     return s;
   }
   let S = load();
   const save = () => GM_setValue("settings", S);
+
+  // ---------------------------------------------------------------- your colours (Look)
+  // One style element, added as early as possible outside the page's own markup. The accent applies on every page;
+  // the background, picture, search bar and glass on the home page. Text turns dark or light to stay readable.
+  const hex = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c.toLowerCase() : "");
+  function luma(h) {
+    const n = parseInt(h.slice(1), 16), f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(n >> 16) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
+  }
+  const INK = {
+    onDark: { ink: "#e6e6e9", ink2: "#b4b4bc", muted: "#8a8a94", line: "rgba(255,255,255,.09)", line2: "rgba(255,255,255,.18)" },
+    onLight: { ink: "#1b1b1f", ink2: "#3f3f47", muted: "#686871", line: "rgba(0,0,0,.10)", line2: "rgba(0,0,0,.20)" },
+  };
+  const inkOn = (h) => (luma(h) > 0.18 ? INK.onLight : INK.onDark);
+  const extraCSS = [];
+  let lookImage = isHome ? GM_getValue("lookImage", "") : "";
+  const lookStyle = document.createElement("style");
+  lookStyle.id = "sp-home-look";
+  function lookCSS() {
+    const L = S.look, a = hex(L.accent), p = hex(L.page), s = hex(L.search);
+    let css = "";
+    if (a) css += ":root:root{--sp-accent:" + a + "!important;--sp-link:" + a + "!important;--sp-visited:color-mix(in oklab," + a + " 62%,#6b6b78)!important;" +
+      "--sp-select:color-mix(in srgb," + a + " 28%,transparent)!important}.home.home,.home.home[data-theme]{--primary:" + a + "!important}";
+    if (!isHome) return css;
+    // the page colour (or the picture's brightness) sets the home page's whole palette, so menus and widgets match it
+    const base = p || (lookImage ? (L.imgLight ? "#f4f4f6" : "#000000") : "");
+    if (base) {
+      const k = inkOn(base), mix = (pct) => "color-mix(in srgb," + base + " " + pct + "%," + k.ink + ")";
+      css += ":root:root{--sp-bg:" + base + "!important;--sp-surface:" + mix(94) + "!important;--sp-surface-2:" + mix(88) + "!important;--sp-field:" + mix(92) + "!important;" +
+        "--sp-ink:" + k.ink + "!important;--sp-ink-2:" + k.ink2 + "!important;--sp-muted:" + k.muted + "!important;--sp-line:" + k.line + "!important;--sp-line-strong:" + k.line2 + "!important}" +
+        ":root:root,:root:root body{background:" + base + "!important}.home.home,.home.home[data-theme]{--background:" + base + "!important;background:" + base + "!important}";
+    }
+    if (lookImage) css += ':root:root{background:' + base + ' url("' + lookImage + '") center/cover no-repeat fixed!important}' +
+      ":root:root :is(body,#root,#___gatsby,.themeProvider,.Layout,.home,.search-home,.hero){background:transparent!important}";
+    if (s || L.glass) {
+      const fill = s || "var(--sp-field,#16161a)";
+      css += ":root:root .search-home .search-form-container{background:" + (L.glass ? "color-mix(in srgb," + fill + " 55%,transparent)" : fill) + "!important" +
+        (L.glass ? ";backdrop-filter:blur(18px) saturate(1.4)!important" : "") + "}";
+    }
+    if (s) {
+      const k = inkOn(s);
+      css += ":root:root .search-home .search-form-container{border-color:" + k.line2 + "!important}:root:root .search-home .search-form-container:focus-within{border-color:var(--sp-accent)!important}" +
+        ":root:root .search-home .search-form-input{color:" + k.ink + "!important}:root:root .search-home .search-form-input::placeholder{color:" + k.muted + "!important}" +
+        ":root:root .search-home :is(.search-btn,.x-btn) svg{color:" + k.muted + "!important}";
+    }
+    return css;
+  }
+  function pageLook() {
+    const css = lookCSS() + extraCSS.join("");
+    lookStyle.textContent = css;
+    if (css && !lookStyle.isConnected) document.documentElement.append(lookStyle);
+    else if (!css) lookStyle.remove();
+  }
+  // the widgets' own colours (the host element only exists on the home page, once the widgets are shown)
+  function hostLook() {
+    if (!host) return;
+    const L = S.look, w = hex(L.widget), a = hex(L.accent), st = host.style;
+    for (const k of ["--wbg", "--wbg2", "--wink", "--wink2", "--wmuted", "--wline", "--wline2", "--wonacc"]) st.removeProperty(k);
+    if (w) {
+      const k = inkOn(w);
+      st.setProperty("--wbg", w); st.setProperty("--wbg2", "color-mix(in srgb," + w + " 88%," + k.ink + ")");
+      st.setProperty("--wink", k.ink); st.setProperty("--wink2", k.ink2); st.setProperty("--wmuted", k.muted); st.setProperty("--wline", k.line); st.setProperty("--wline2", k.line2);
+    }
+    if (a) st.setProperty("--wonacc", luma(a) > 0.18 ? "#000000" : "#ffffff");
+    host.toggleAttribute("data-glass", !!L.glass);
+  }
+
+
+  pageLook();
+  if (!isHome) return;
 
   // ---------------------------------------------------------------- helpers
   const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -90,6 +164,8 @@
     right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    resize: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M11 4 4 11M11 8.5 8.5 11"/></svg>',
+    look: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.7 1.6-1.6 0-.5-.2-.8-.5-1.1-.3-.3-.5-.7-.5-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.6-9-7.6Z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8" r="1.2" fill="currentColor"/></svg>',
   };
   // weather symbols, drawn simply
   const WX = {
@@ -119,109 +195,140 @@
   }
 
   // ---------------------------------------------------------------- look
+  // Text and spacing scale with each widget: --u is 1% of the widget's width (or of its height, for widgets given a
+  // height), and sizes inside a widget are set from it or in em. The Look panel sets the --w* colours on the host.
   const CSS = `
 :host { all: initial; display: block; width: min(980px, calc(100% - 32px)); margin: 30px auto 24px; position: relative; z-index: 1;
-  --bg: var(--sp-surface, #ffffff); --bg2: var(--sp-surface-2, #f1f3f4); --ink: var(--sp-ink, #1f1f1f); --ink2: var(--sp-ink-2, #474747);
-  --muted: var(--sp-muted, #70757a); --line: var(--sp-line, #e3e3e8); --line2: var(--sp-line-strong, #dadce0); --acc: var(--sp-accent, #1a0dab); --onacc: var(--sp-bg, #ffffff);
+  --bg: var(--wbg, var(--sp-surface, #ffffff)); --bg2: var(--wbg2, var(--sp-surface-2, #f1f3f4)); --ink: var(--wink, var(--sp-ink, #1f1f1f)); --ink2: var(--wink2, var(--sp-ink-2, #474747));
+  --muted: var(--wmuted, var(--sp-muted, #70757a)); --line: var(--wline, var(--sp-line, #e3e3e8)); --line2: var(--wline2, var(--sp-line-strong, #dadce0));
+  --acc: var(--sp-accent, #1a0dab); --onacc: var(--wonacc, var(--sp-bg, #ffffff));
   --font: var(--sp-font, "Segoe UI", system-ui, sans-serif); --mono: var(--sp-mono, Consolas, ui-monospace, monospace); }
-:host([data-dark]) { --bg: var(--sp-surface, #1f2025); --bg2: var(--sp-surface-2, #2a2b31); --ink: var(--sp-ink, #e8eaed); --ink2: var(--sp-ink-2, #bdc1c6);
-  --muted: var(--sp-muted, #9aa0a6); --line: var(--sp-line, #2c2d33); --line2: var(--sp-line-strong, #3c4043); --acc: var(--sp-accent, #8ab4f8); --onacc: var(--sp-bg, #202124); }
+:host([data-dark]) { --bg: var(--wbg, var(--sp-surface, #1f2025)); --bg2: var(--wbg2, var(--sp-surface-2, #2a2b31)); --ink: var(--wink, var(--sp-ink, #e8eaed)); --ink2: var(--wink2, var(--sp-ink-2, #bdc1c6));
+  --muted: var(--wmuted, var(--sp-muted, #9aa0a6)); --line: var(--wline, var(--sp-line, #2c2d33)); --line2: var(--wline2, var(--sp-line-strong, #3c4043));
+  --acc: var(--sp-accent, #8ab4f8); --onacc: var(--wonacc, var(--sp-bg, #202124)); }
+:host { --home-ink: var(--ink); --home-ink2: var(--ink2); --home-muted: var(--muted); --home-acc: var(--acc); --home-bg2: var(--bg2); }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-.wrap { font: 14px/1.45 var(--font); color: var(--ink); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); gap: 14px; }
-.card { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px 16px; min-height: 150px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.card.wide { grid-column: span 2; }
+.wrap { font: 14px/1.45 var(--font); color: var(--ink); container: home / inline-size; }
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.card { position: relative; grid-column: span 2; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; min-height: 150px; display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
+.card[data-w="3"] { grid-column: span 3; } .card[data-w="4"] { grid-column: span 4; } .card[data-w="5"] { grid-column: span 5; } .card[data-w="6"] { grid-column: span 6; }
+.card.sized { container-type: size; min-height: 0; }
+.ch, .cb { --u: 1cqi; --pad: clamp(10px, calc(var(--u) * 5.2), 30px); font-size: clamp(12px, calc(var(--u) * 4.6), 19px); }
+.card.sized > .ch, .card.sized > .cb { --u: min(1cqi, 1.6cqb); }
+:host([data-glass]) .card, :host([data-glass]) .editing .bar, :host([data-glass]) .look { background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(18px) saturate(1.4); border-color: color-mix(in srgb, var(--ink) 15%, transparent); }
 .card.dragging { opacity: .55; outline: 2px dashed var(--acc); outline-offset: 2px; }
+.card.resizing { outline: 2px dashed var(--acc); outline-offset: 2px; }
 .moving, .moving * { user-select: none; cursor: grabbing !important; }
+.sizing, .sizing * { user-select: none; cursor: nwse-resize !important; }
 .editing .card { border-style: dashed; border-color: var(--line2); }
-.ch { display: flex; align-items: center; gap: 4px; min-height: 28px; }
-.ch h2 { margin: 0; flex: 1; min-width: 0; font: 600 11.5px var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ch { display: flex; align-items: center; gap: .3em; min-height: 2em; padding: calc(var(--pad) * .7) var(--pad) 0; }
+.ch h2 { margin: 0; flex: 1; min-width: 0; font: 600 .82em var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .tools { display: flex; gap: 2px; }
-.ib { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+.ib { all: unset; cursor: pointer; width: 2em; height: 2em; border-radius: .57em; display: grid; place-items: center; color: var(--muted); }
 .ib:hover { background: var(--bg2); color: var(--ink); }
-.ib svg { width: 16px; height: 16px; }
+.ib svg { width: 1.15em; height: 1.15em; }
 .ib.drag { cursor: grab; touch-action: none; }
 .ib.drag:active { cursor: grabbing; }
-.cb { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-button.link { all: unset; cursor: pointer; color: var(--ink2); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 8px; }
+.cb { flex: 1; display: flex; flex-direction: column; gap: .6em; min-width: 0; min-height: 0; padding: .55em var(--pad) var(--pad); }
+.card.sized > .cb { overflow: auto; scrollbar-width: thin; }
+.rs { all: unset; position: absolute; right: 3px; bottom: 3px; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); cursor: nwse-resize; touch-action: none; }
+.rs:hover, .rs:focus-visible { color: var(--ink); background: var(--bg2); }
+.rs svg { width: 12px; height: 12px; }
+button.link { all: unset; cursor: pointer; color: var(--ink2); font-size: .93em; display: inline-flex; align-items: center; gap: .43em; padding: .3em .45em; border-radius: .57em; }
 button.link:hover { color: var(--ink); background: var(--bg2); }
-button.link svg { width: 15px; height: 15px; }
-.btn { all: unset; cursor: pointer; font: 600 13px var(--font); padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line2); color: var(--ink); text-align: center; }
+button.link svg { width: 1.07em; height: 1.07em; }
+.btn { all: unset; cursor: pointer; font: 600 .93em var(--font); padding: .45em 1.05em; border-radius: 999px; border: 1px solid var(--line2); color: var(--ink); text-align: center; }
 .btn:hover { border-color: var(--acc); }
 .btn.primary { background: var(--acc); border-color: var(--acc); color: var(--onacc); }
-.btn.small { padding: 4px 10px; font-size: 12.5px; }
+.btn.small { padding: .32em .78em; font-size: .9em; }
 .chip { all: unset; cursor: pointer; font: 600 12.5px var(--font); padding: 5px 12px; border-radius: 999px; background: var(--bg2); color: var(--ink2); }
 .chip:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--acc); }
-input[type=text], input[type=number], select, textarea { font: 14px var(--font); color: var(--ink); background: transparent; border: 1px solid var(--line2); border-radius: 10px; padding: 6px 10px; outline: none; min-width: 0; }
+input[type=text], input[type=number], select, textarea { font: 1em var(--font); color: var(--ink); background: transparent; border: 1px solid var(--line2); border-radius: .7em; padding: .43em .7em; outline: none; min-width: 0; }
 input:focus, select:focus, textarea:focus { border-color: var(--acc); }
 select option { background: var(--bg); color: var(--ink); }
-.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.row { display: flex; gap: .43em; align-items: center; flex-wrap: wrap; }
 .row input[type=text] { flex: 1; }
 .row .sp { flex: 1; }
-.muted { color: var(--muted); font-size: 12.5px; }
+.muted { color: var(--muted); font-size: .89em; }
 .muted a { color: inherit; }
-.credit { font-size: 11.5px; }
+.credit { font-size: .82em; }
 .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; min-height: 32px; justify-content: flex-end; }
 .editing .bar { justify-content: flex-start; padding: 10px 12px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); }
 .bar .lbl { color: var(--muted); font-size: 13px; margin-right: 2px; }
 .bar .sp { flex: 1; }
-.ib:focus-visible, button.link:focus-visible, .btn:focus-visible, .chip:focus-visible, .tile:focus-visible, .cal button:focus-visible, .presets button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.ib:focus-visible, button.link:focus-visible, .btn:focus-visible, .chip:focus-visible, .tile:focus-visible, .cal button:focus-visible, .presets button:focus-visible, .look input:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+/* look panel */
+.look { display: grid; gap: 10px; margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); }
+.look .lh { display: flex; align-items: center; gap: 8px; }
+.look .lh b { flex: 1; font-weight: 600; }
+.look .lr { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 32px; }
+.look .lr > span:first-child { width: 8.5em; color: var(--ink2); }
+.look input[type=color] { width: 44px; height: 28px; padding: 2px; border: 1px solid var(--line2); border-radius: 8px; background: transparent; cursor: pointer; }
+.look .st { color: var(--muted); font-size: 12.5px; }
+.look .sp { flex: 1; }
+.look label.row { color: var(--ink2); }
 /* clock */
-.time { font: 300 46px/1.05 var(--font); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
-.time small { font-size: 18px; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.time { font: 300 clamp(30px, calc(var(--u) * 14.8), 170px)/1.05 var(--font); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.time small { font-size: .39em; color: var(--muted); margin-left: .1em; letter-spacing: 0; }
 .date { color: var(--ink2); }
-.zones { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
-.zones li { display: flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.zones { list-style: none; margin: .3em 0 0; padding: 0; display: grid; gap: 2px; }
+.zones li { display: flex; gap: .57em; align-items: center; font-variant-numeric: tabular-nums; }
 .zones li span:first-child { flex: 1; color: var(--ink2); }
-.zones li .d { color: var(--muted); font-size: 12px; }
+.zones li .d { color: var(--muted); font-size: .86em; }
 /* weather */
-.wx { display: flex; align-items: center; gap: 14px; }
-.wx svg { width: 44px; height: 44px; color: var(--acc); flex: none; }
-.temp { font: 300 42px/1 var(--font); font-variant-numeric: tabular-nums; }
-.days { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: auto; }
-.days div { background: var(--bg2); border-radius: 10px; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.days svg { width: 20px; height: 20px; color: var(--ink2); }
+.wx { display: flex; align-items: center; gap: 1em; }
+.wx svg { width: clamp(30px, calc(var(--u) * 14.2), 130px); height: clamp(30px, calc(var(--u) * 14.2), 130px); color: var(--acc); flex: none; }
+.temp { font: 300 clamp(28px, calc(var(--u) * 13.5), 150px)/1 var(--font); font-variant-numeric: tabular-nums; }
+.days { display: grid; grid-template-columns: repeat(3, 1fr); gap: .43em; margin-top: auto; }
+.days div { background: var(--bg2); border-radius: .7em; padding: .43em .57em; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .89em; font-variant-numeric: tabular-nums; }
+.days svg { width: 1.6em; height: 1.6em; color: var(--ink2); }
 .days b { font-weight: 600; color: var(--ink); }
 .places { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.places button { all: unset; cursor: pointer; display: block; width: 100%; padding: 5px 8px; border-radius: 8px; color: var(--ink2); }
+.places button { all: unset; cursor: pointer; display: block; width: 100%; padding: .35em .57em; border-radius: .57em; color: var(--ink2); }
 .places button:hover, .places button:focus-visible { background: var(--bg2); color: var(--ink); outline: none; }
 /* shortcuts */
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
-.tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; border-radius: 12px; text-decoration: none; color: var(--ink2); min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(6em, 1fr)); gap: .57em; }
+.tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: .43em; padding: .7em .3em .57em; border-radius: .85em; text-decoration: none; color: var(--ink2); min-width: 0; }
 .tile:hover { background: var(--bg2); color: var(--ink); }
-.tile .av { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font: 600 17px var(--font); color: #fff; }
-.tile .nm { font-size: 12.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tile .x { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; background: var(--bg2); }
-.tile .x svg { width: 12px; height: 12px; }
-.addform { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 6px; }
+.tile .av { width: 2.85em; height: 2.85em; border-radius: .85em; display: grid; place-items: center; font: 600 1.2em var(--font); color: #fff; }
+.tile .nm { font-size: .89em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .x { position: absolute; top: 2px; right: 2px; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--bg2); }
+.tile .x svg { width: .86em; height: .86em; }
+.addform { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: .43em; }
 /* notes */
-textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-height: 1.5; }
+textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-height: 1.5; }
+.card.sized textarea { min-height: 3em; resize: none; }
 /* calendar */
-.cal { display: grid; gap: 4px; }
-.cal .mh { display: flex; align-items: center; gap: 4px; }
+.cal { display: grid; gap: .3em; }
+.cal .mh { display: flex; align-items: center; gap: .3em; }
 .cal .mh b { flex: 1; font-weight: 600; }
-.cal table { width: 100%; border-collapse: collapse; text-align: center; font-variant-numeric: tabular-nums; font-size: 13px; }
-.cal th { font-weight: 600; color: var(--muted); font-size: 11.5px; padding: 2px 0; }
+.cal table { width: 100%; border-collapse: collapse; text-align: center; font-variant-numeric: tabular-nums; font-size: .93em; }
+.cal th { font-weight: 600; color: var(--muted); font-size: .88em; padding: 2px 0; }
 .cal td { padding: 1px 0; }
-.cal td span { display: inline-grid; place-items: center; width: 28px; height: 26px; border-radius: 8px; color: var(--ink2); }
+.cal td span { display: inline-grid; place-items: center; width: 2.15em; height: 2em; border-radius: .6em; color: var(--ink2); }
 .cal td.out span { color: var(--muted); opacity: .5; }
 .cal td.today span { background: var(--acc); color: var(--onacc); font-weight: 700; }
 /* currency */
-.fx { display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
-.fx div { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.fx { display: grid; gap: .3em; font-variant-numeric: tabular-nums; }
+.fx div { display: flex; justify-content: space-between; gap: .7em; padding: .3em 0; border-bottom: 1px solid var(--line); }
 .fx div:last-child { border-bottom: 0; }
 .fx b { font-weight: 600; }
-.amount { width: 110px; }
+.amount { width: 8em; }
 /* timer */
-.tm { font: 300 44px/1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.tm { font: 300 clamp(30px, calc(var(--u) * 14.2), 160px)/1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .tm.done { color: var(--acc); animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .35; } }
-.presets { display: flex; gap: 6px; flex-wrap: wrap; }
-.presets button { all: unset; cursor: pointer; font: 600 12.5px var(--font); padding: 4px 10px; border-radius: 999px; background: var(--bg2); color: var(--ink2); }
+.presets { display: flex; gap: .43em; flex-wrap: wrap; }
+.presets button { all: unset; cursor: pointer; font: 600 .89em var(--font); padding: .3em .75em; border-radius: 999px; background: var(--bg2); color: var(--ink2); }
 .presets button:hover { color: var(--ink); }
 .err { color: var(--ink2); }
-@media (max-width: 640px) { .card.wide { grid-column: auto; } .addform { grid-template-columns: 1fr; } }
+/* narrower windows: four columns, then one */
+@container home (max-width: 859px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .card[data-w="5"], .card[data-w="6"] { grid-column: span 4; } }
+@container home (max-width: 539px) {
+  .grid { grid-template-columns: minmax(0, 1fr); } .card, .card[data-w] { grid-column: auto; }
+  .card.sized { height: auto !important; min-height: 150px; container-type: inline-size; } .card.sized > .ch, .card.sized > .cb { --u: 1cqi; }
+  .rs { display: none; } .addform { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .tm.done { animation: none; } }
 `;
 
@@ -416,7 +523,7 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
 
   // Timer: presets or your own minutes; keeps running if you reload the page.
   let audio = null;
-  const pageTitle = document.title;
+  let pageTitle = "";   // read when the widgets appear (this script starts before the page has a title)
   function beep() {
     try {
       audio = audio || new (window.AudioContext || window.webkitAudioContext)();
@@ -473,8 +580,8 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
     if (root) draw();
   });
 
-  // ---------------------------------------------------------------- layout, customize, drag
-  let host = null, root = null, editing = false;
+  // ---------------------------------------------------------------- layout, customize, drag, resize
+  let host = null, root = null, editing = false, lookOpen = false;
   function draw() {
     for (const t of timers) clearInterval(t);
     timers.clear();
@@ -482,12 +589,24 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
     wrap.classList.toggle("editing", editing);
     grid.textContent = "";
     for (const id of S.order) if (known(id) && S.on[id]) grid.append(card(id));
+    if (!editing) lookOpen = false;
+    renderLook();
     drawBar();
+  }
+  // Widths are columns out of 6 (2 = a third, 3 = half, 6 = the full row); a height of 0 means "fit the content".
+  function sizeOf(id) {
+    const def = W[id] || EXT[id] || {}, z = S.size[id] || {};
+    return { w: Math.min(6, Math.max(2, z.w || (def.wide ? 4 : 2))), h: z.h > 0 ? z.h : 0 };
+  }
+  function applySize(c, z) {
+    c.dataset.w = z.w;
+    c.classList.toggle("sized", z.h > 0);
+    c.style.height = z.h > 0 ? z.h + "px" : "";
   }
   function card(id) {
     const def = W[id] || EXT[id];
     const c = document.createElement("section");
-    c.className = "card" + (def.wide ? " wide" : "");
+    c.className = "card";
     c.dataset.id = id;
     c.setAttribute("aria-label", def.title);
     c.innerHTML = '<div class="ch"><h2>' + esc(def.title) + '</h2><div class="tools">' + (editing
@@ -498,6 +617,8 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
     const body = c.querySelector(".cb");
     if (def.ext) body.innerHTML = '<slot name="ext-' + id + '"><span class="muted">Loading…</span></slot>';
     else def.render(body);
+    applySize(c, sizeOf(id));
+    if (editing) c.insertAdjacentHTML("beforeend", '<button class="rs" type="button" aria-label="Resize ' + esc(def.title) + '" title="Drag to resize. Arrow keys work too. Double-click to reset.">' + ICON.resize + "</button>");
     return c;
   }
   function drawBar() {
@@ -506,7 +627,120 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
     const hidden = S.order.filter((id) => known(id) && !S.on[id]);
     bar.innerHTML = (hidden.length ? '<span class="lbl">Add:</span>' + hidden.map((id) => '<button class="chip" type="button" data-add="' + esc(id) + '">+ ' + esc(titleOf(id)) + "</button>").join("")
       : '<span class="lbl">Every widget is showing.</span>') +
-      '<span class="sp"></span><button class="link" type="button" data-a="off">Turn widgets off</button><button class="btn primary" type="button" data-a="done">Done</button>';
+      '<span class="sp"></span><button class="link" type="button" data-a="look" aria-expanded="' + lookOpen + '">' + ICON.look + "Look</button>" +
+      '<button class="link" type="button" data-a="off">Turn widgets off</button><button class="btn primary" type="button" data-a="done">Done</button>';
+  }
+
+  // The Look panel: your accent, background (colour or picture), search bar and widget colours, and glass.
+  const LOOK_ROWS = [
+    ["accent", "Accent", "--sp-accent", "#a3c4ff"],
+    ["page", "Background", "--sp-bg", "#000000"],
+    ["search", "Search bar", "--sp-field", "#0b0b0d"],
+    ["widget", "Widgets", "--sp-surface", "#0b0b0d"],
+  ];
+  function toHex(c) {
+    const cx = toHex.cx || (toHex.cx = document.createElement("canvas").getContext("2d"));
+    cx.fillStyle = "#010203"; cx.fillStyle = (c || "").trim();
+    const v = String(cx.fillStyle);
+    return /^#[0-9a-f]{6}$/i.test(v) && (v !== "#010203" || /^#010203$/i.test(c)) ? v : "";
+  }
+  function renderLook() {
+    const panel = root.querySelector(".look");
+    panel.hidden = !lookOpen;
+    if (!lookOpen) return;
+    const L = S.look, cs = getComputedStyle(document.documentElement);
+    const status = (k) => (hex(L[k]) ? 'Your colour <button class="link" type="button" data-theme-k="' + k + '">Use the theme\'s</button>'
+      : (k === "search" || k === "widget") && (hex(L.page) || lookImage) ? "Follows the background" : "The theme's colour");
+    panel.innerHTML = '<div class="lh"><b>Look</b><button class="link" type="button" data-a="look-reset">Reset all</button></div>' +
+      LOOK_ROWS.map(([k, label, cssVar, fallback]) => '<div class="lr"><span>' + label + '</span><input type="color" data-k="' + k + '" aria-label="' + label + ' colour" value="' +
+        (hex(L[k]) || toHex(cs.getPropertyValue(cssVar)) || fallback) + '"><span class="st" data-st="' + k + '">' + status(k) + "</span>" +
+        (k === "page" ? '<span class="sp"></span><button class="btn small" type="button" data-a="pic">' + (lookImage ? "Change picture" : "Picture…") + "</button>" +
+          (lookImage ? '<button class="link" type="button" data-a="nopic">Remove picture</button>' : "") : "") + "</div>").join("") +
+      '<label class="row"><input type="checkbox" class="glass"' + (L.glass ? " checked" : "") + "> Glass: see-through widgets and search bar</label>" +
+      '<span class="st">The accent shows on every Startpage page, the rest on this home page. A picture stays in this browser. Text turns dark or light by itself to stay readable.</span>' +
+      '<input type="file" accept="image/*" hidden class="file">';
+  }
+  let lookSaveT = 0;
+  function lookChanged(rerender) {
+    pageLook(); hostLook();
+    clearTimeout(lookSaveT); lookSaveT = setTimeout(save, 300);
+    if (rerender) renderLook();
+  }
+  // a picture is made at most 1920×1200 and saved as a JPEG; its brightness picks dark or light text
+  function readPicture(file) {
+    return new Promise((ok, bad) => {
+      if (!file || !/^image\//.test(file.type) || file.size > 30e6) return bad(new Error("Pick a picture file (up to 30 MB)."));
+      const fr = new FileReader();
+      fr.onerror = () => bad(new Error("Couldn't read that file."));
+      fr.onload = () => {
+        const img = new Image();
+        img.onerror = () => bad(new Error("That file isn't a picture this browser can show."));
+        img.onload = () => {
+          const k = Math.min(1, 1920 / img.naturalWidth, 1200 / img.naturalHeight), c = document.createElement("canvas");
+          c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          const t = document.createElement("canvas"); t.width = t.height = 16;
+          const tg = t.getContext("2d"); tg.drawImage(c, 0, 0, 16, 16);
+          const d = tg.getImageData(0, 0, 16, 16).data; let sum = 0;
+          for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+          ok({ data: c.toDataURL("image/jpeg", 0.82), light: sum / 256 / 255 > 0.55 });
+        };
+        img.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  function onLookInput(e) {
+    const t = e.target;
+    if (t.matches && t.matches("input[type=color][data-k]")) {
+      S.look[t.dataset.k] = t.value; lookChanged(false);
+      const st = root.querySelector('[data-st="' + t.dataset.k + '"]');
+      if (st && !st.querySelector("button")) st.innerHTML = 'Your colour <button class="link" type="button" data-theme-k="' + t.dataset.k + '">Use the theme\'s</button>';
+    } else if (t.matches && t.matches(".glass")) { S.look.glass = t.checked; lookChanged(false); }
+    else if (t.matches && t.matches(".file") && t.files && t.files[0]) {
+      readPicture(t.files[0]).then((p) => { lookImage = p.data; GM_setValue("lookImage", p.data); S.look.imgLight = p.light; lookChanged(true); })
+        .catch((err) => { const st = root.querySelector('[data-st="page"]'); if (st) st.textContent = err.message; });
+    }
+  }
+  // Resize a card by its corner: across in whole columns, down in 10 px steps.
+  function startResize(e, c) {
+    const grid = c.parentElement, gs = getComputedStyle(grid), cols = gs.gridTemplateColumns.split(" ").filter(Boolean).length;
+    if (cols < 2) return;
+    e.preventDefault();
+    const gap = parseFloat(gs.columnGap) || 14, colW = (grid.clientWidth - gap * (cols - 1)) / cols, r = c.getBoundingClientRect();
+    const id = c.dataset.id, z = sizeOf(id), x0 = e.clientX, y0 = e.clientY, wrap = root.querySelector(".wrap");
+    let tall = z.h > 0;
+    c.classList.add("resizing"); wrap.classList.add("sizing");
+    const move = (ev) => {
+      z.w = Math.max(2, Math.min(cols, Math.round((r.width + ev.clientX - x0 + gap) / (colW + gap))));
+      if (Math.abs(ev.clientY - y0) > 6) tall = true;
+      if (tall) z.h = Math.max(120, Math.round((r.height + ev.clientY - y0) / 10) * 10);
+      applySize(c, z);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", up, true); window.removeEventListener("pointercancel", up, true);
+      c.classList.remove("resizing"); wrap.classList.remove("sizing");
+      S.size[id] = { w: z.w, h: z.h }; save();
+    };
+    window.addEventListener("pointermove", move, true); window.addEventListener("pointerup", up, true); window.addEventListener("pointercancel", up, true);
+  }
+  // On the corner button: arrow keys resize (left and right by a column, up and down by 20 px), Home resets.
+  function onKeyDown(e) {
+    const rs = e.target.closest && e.target.closest(".rs");
+    if (!rs || !editing) return;
+    const c = rs.closest(".card"), id = c.dataset.id, z = sizeOf(id);
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") z.w = Math.max(2, Math.min(6, z.w + (e.key === "ArrowRight" ? 1 : -1)));
+    else if (e.key === "ArrowDown" || e.key === "ArrowUp") z.h = Math.max(120, (z.h || Math.round(c.getBoundingClientRect().height)) + (e.key === "ArrowDown" ? 20 : -20));
+    else if (e.key === "Home") { delete S.size[id]; save(); applySize(c, sizeOf(id)); e.preventDefault(); return; }
+    else return;
+    e.preventDefault();
+    S.size[id] = { w: z.w, h: z.h }; save(); applySize(c, z);
+  }
+  function onDblClick(e) {
+    const rs = e.target.closest && e.target.closest(".rs");
+    if (!rs) return;
+    const c = rs.closest(".card");
+    delete S.size[c.dataset.id]; save(); applySize(c, sizeOf(c.dataset.id));
   }
   function orderFromGrid() {
     const shown = Array.from(root.querySelectorAll(".grid > .card")).map((c) => c.dataset.id);
@@ -520,8 +754,14 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
       if (a.dataset.a === "edit") { editing = true; draw(); root.querySelector("[data-a=done]").focus(); }
       else if (a.dataset.a === "done") { editing = false; draw(); root.querySelector("[data-a=edit]").focus(); }
       else if (a.dataset.a === "off") { S.enabled = false; save(); host.remove(); host = null; }
+      else if (a.dataset.a === "look") { lookOpen = !lookOpen; renderLook(); drawBar(); }
+      else if (a.dataset.a === "look-reset") { S.look = Object.assign({}, DEFAULTS.look); lookImage = ""; GM_setValue("lookImage", ""); lookChanged(true); }
+      else if (a.dataset.a === "pic") root.querySelector(".look .file").click();
+      else if (a.dataset.a === "nopic") { lookImage = ""; GM_setValue("lookImage", ""); S.look.imgLight = false; lookChanged(true); }
       return;
     }
+    const th = t.closest("[data-theme-k]");
+    if (th) { S.look[th.dataset.themeK] = ""; lookChanged(true); return; }
     const add = t.closest("[data-add]");
     if (add) { const id = add.dataset.add; S.on[id] = true; S.order = S.order.filter((x) => x !== id).concat(id); save(); draw(); return; }
     const c = t.closest(".card");
@@ -538,6 +778,8 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
   }
   // Drag a card by its handle; the others make room as you go.
   function onPointerDown(e) {
+    const rs = e.target.closest(".rs");
+    if (rs && editing && e.button === 0) return startResize(e, rs.closest(".card"));
     const h = e.target.closest(".drag");
     if (!h || !editing || e.button !== 0) return;
     const c = h.closest(".card"), grid = c.parentElement;
@@ -584,10 +826,16 @@ textarea { width: 100%; flex: 1; min-height: 110px; resize: vertical; line-heigh
     host = document.createElement("div");
     host.id = "sp-home";
     root = host.attachShadow({ mode: "closed" });
-    root.innerHTML = "<style>" + CSS + '</style><div class="wrap"><div class="grid"></div><div class="bar"></div></div>';
+    root.innerHTML = "<style>" + CSS + '</style><div class="wrap"><div class="grid"></div><div class="look" hidden></div><div class="bar"></div></div>';
     if (isDark()) host.setAttribute("data-dark", "");
+    hostLook();
+    pageTitle = document.title;
     root.addEventListener("click", onClick);
     root.addEventListener("pointerdown", onPointerDown);
+    root.addEventListener("keydown", onKeyDown);
+    root.addEventListener("dblclick", onDblClick);
+    root.addEventListener("input", onLookInput);
+    root.addEventListener("change", (e) => { if (e.target.matches && e.target.matches("input[type=color][data-k]")) { clearTimeout(lookSaveT); save(); } });
     // typing in a widget stays in the widget (Startpage's page would otherwise react to the keys)
     for (const type of ["keydown", "keyup", "keypress", "input"]) host.addEventListener(type, (e) => e.stopPropagation());
     if (!place()) { host = null; return; }
