@@ -157,6 +157,13 @@ per reply, and it cites what it found. It follows a short instruction file you c
 conversation is deleted when you close it, unless you keep that one or turn on **Keep conversations** in settings.
 You can also download one as a Markdown file. Follow-ups under an answer are deleted after 30 minutes without use.
 
+**Your keys.** They are kept in Violentmonkey's own storage, which websites can't read, and Instant Answer runs
+sealed off from Startpage's own scripts. The key goes to your AI service from Violentmonkey, never through the page.
+For more, turn on **Key lock** in settings: your keys are then stored encrypted with a passphrase, so a copy of your
+browser's files or a Violentmonkey backup doesn't reveal them. You unlock them once for as long as you choose (this
+page only, or 1, 8 or 24 hours). If you forget the passphrase, you enter your keys again. For paid services, also set
+a spending limit in the service's own dashboard.
+
 By default it answers questions and longer searches by itself and shows an **Ask AI** button for the rest. You can
 change that to only when you click, or every search. It stays out of the way when Startpage shows its own answer
 box, like weather or a calculator.

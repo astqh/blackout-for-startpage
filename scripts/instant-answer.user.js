@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Instant Answer for Startpage
 // @namespace    blackout-for-startpage/instant-answer
-// @version      2.1.0
+// @version      2.3.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -21,6 +21,8 @@
 // @connect      localhost
 // @connect      *
 // @run-at       document-end
+// @inject-into  content
+// @sandbox      DOM
 // @noframes
 // ==/UserScript==
 
@@ -71,7 +73,9 @@
     agentMd: "",                   // "" = the built-in instructions (AGENT_MD)
     mode: "smart",                 // "smart" | "click" | "always"
     sources: true,                 // show which results the answer used
+    lockHours: 8,                  // key lock: how long it stays unlocked (0 = only on this page)
   };
+  let SECRET = null;               // keys from the key lock, once unlocked (only in this page's memory)
   function load() {
     const saved = GM_getValue("settings", {}), s = Object.assign({}, DEFAULTS, saved);
     if (saved.provider === "opencode" || (saved.opencodeKey && !saved.cloudKey)) {     // settings from version 1
@@ -80,9 +84,54 @@
       delete s.opencodeKey; delete s.opencodeModel;
     }
     if (!PRESETS[s.cloudPreset]) s.cloudPreset = "custom";
+    if (SECRET) { s.cloudKey = s.cloudKey || SECRET.cloudKey || ""; s.localKey = s.localKey || SECRET.localKey || ""; }
     return s;
   }
-  const save = (s) => GM_setValue("settings", s);
+  // with the key lock on, keys are never written in the clear
+  const save = (s) => GM_setValue("settings", GM_getValue("vault", null) ? Object.assign({}, s, { cloudKey: "", localKey: "" }) : s);
+
+  // ---------------------------------------------------------------- key lock
+  // Optional. The keys are stored encrypted (AES-GCM, key from your passphrase with PBKDF2-SHA-256, 600,000 rounds),
+  // so a copy of the browser's files or a Violentmonkey backup doesn't reveal them. Unlocked, the key stays in this
+  // page's memory, and for "stay unlocked" also in Violentmonkey's storage until it runs out (or "Lock now").
+  const b64 = (u8) => btoa(String.fromCharCode.apply(null, u8));
+  const unb64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  let vaultKey = null;
+  async function deriveKey(pass, salt) {
+    const base = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+  }
+  async function seal(key, salt, secrets) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(secrets))));
+    GM_setValue("vault", { v: 1, salt: b64(salt), iv: b64(iv), data: b64(data), has: { cloud: !!secrets.cloudKey, local: !!secrets.localKey } });
+    SECRET = secrets; vaultKey = key;
+  }
+  async function openVault(key) {
+    const v = GM_getValue("vault", null);
+    return JSON.parse(dec.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(v.iv) }, key, unb64(v.data))));
+  }
+  async function stayUnlocked(key, hours) {
+    if (hours > 0) GM_setValue("unlock", { until: Date.now() + hours * 3600e3, k: b64(new Uint8Array(await crypto.subtle.exportKey("raw", key))) });
+    else GM_setValue("unlock", null);
+  }
+  async function unlock(pass, hours) {   // throws on a wrong passphrase
+    const v = GM_getValue("vault", null);
+    if (!v) return;
+    const key = await deriveKey(pass, unb64(v.salt));
+    SECRET = await openVault(key); vaultKey = key;
+    await stayUnlocked(key, hours);
+  }
+  async function resume() {               // still unlocked from earlier?
+    const u = GM_getValue("unlock", null);
+    if (SECRET || !u || !GM_getValue("vault", null)) return;
+    if (Date.now() > u.until) { GM_setValue("unlock", null); return; }
+    try { const key = await crypto.subtle.importKey("raw", unb64(u.k), "AES-GCM", true, ["encrypt", "decrypt"]); SECRET = await openVault(key); vaultKey = key; }
+    catch (e) { GM_setValue("unlock", null); }
+  }
+  function lockNow() { SECRET = null; vaultKey = null; GM_setValue("unlock", null); }
+  const lockedFor = (prov) => { const v = GM_getValue("vault", null); return !!v && !SECRET && (prov === "local" ? v.has.local : v.has.cloud); };
 
   // Online services that speak the OpenAI chat API. "custom" takes any address. Optional per service: only / not
   // (which of its models to use), fast / strong (its usual picks when its model list can't be read), fixed (always use
@@ -101,7 +150,7 @@
   const PROVIDERS = {
     cloud: {
       get label() { return presetOf(S).label; }, get keyName() { return presetOf(S).label + " key"; },
-      base: (s) => (s.cloudPreset === "custom" ? s.cloudUrl || "" : presetOf(s).url).replace(/\/+$/, ""),
+      base: (s) => (s.cloudPreset === "custom" || presetOf(s).ask ? s.cloudUrl || "" : presetOf(s).url).replace(/\/+$/, ""),
       key: (s) => s.cloudKey, model: (s) => s.modelFast, modelField: "modelFast",
     },
     local: { label: "Your computer", keyName: "key for your local server", base: (s) => (s.localUrl || DEFAULTS.localUrl).replace(/\/+$/, ""), key: (s) => s.localKey, model: (s) => s.localModel, modelField: "localModel" },
@@ -228,7 +277,7 @@
   }
   // The service's model list, kept for 12 hours (per address).
   function listModels(providerId, s, fresh) {
-    const P = PROVIDERS[providerId], base = P.base(s), kept = GM_getValue("models", {})[base];
+    const P = PROVIDERS[providerId], base = P.base(s), slot = base + "|" + (providerId === "cloud" ? s.cloudPreset : "local"), kept = GM_getValue("models", {})[slot];
     if (!fresh && kept && Date.now() - kept.at < 12 * 3600e3 && providerId !== "local") return Promise.resolve(kept.list);
     return new Promise((resolve, reject) => {
       if (!base) return reject(new Error("nourl"));
@@ -239,9 +288,9 @@
           try {
             const j = JSON.parse(r.responseText);
             const pr = providerId === "cloud" ? presetOf(s) : {};
-            const list = (j.data || j.models || []).map((m) => ({ id: m.id || m.name, loaded: m.status && (m.status.value || m.status) === "loaded", told: !!m.status }))
+            const list = (j.data || j.models || []).map((m) => ({ id: String(m.id || m.name || "").replace(/^models\//, ""), loaded: m.status && (m.status.value || m.status) === "loaded", told: !!m.status }))
               .filter((m) => m.id && !NOT_CHAT.test(m.id) && (!pr.only || pr.only.test(m.id)) && !(pr.not && pr.not.test(m.id)));
-            if (providerId !== "local") { const all = GM_getValue("models", {}); all[base] = { at: Date.now(), list }; GM_setValue("models", all); }
+            if (providerId !== "local") { const all = GM_getValue("models", {}); all[slot] = { at: Date.now(), list }; GM_setValue("models", all); }
             resolve(list);
           } catch (e) { reject(new Error("bad reply")); }
         },
@@ -315,7 +364,7 @@
     if (!q.noTemp) body.temperature = 0.2;
     body[q.maxCompletion ? "max_completion_tokens" : "max_tokens"] = o.effort === "high" ? 8000 : o.effort === "medium" ? 4000 : o.maxTokens || 1500;
     if (!q.noEffort) {
-      if (prov === "cloud" && S.cloudPreset === "openrouter") body.reasoning = { effort: o.effort };
+      if (prov === "cloud" && (S.cloudPreset === "openrouter" || presetOf(S).orReasoning)) body.reasoning = { effort: o.effort };
       else body.reasoning_effort = o.effort;
     }
     if (prov === "local" && !q.noKwargs) body.chat_template_kwargs = { enable_thinking: o.effort !== "low" };
@@ -548,6 +597,10 @@ img.fav, .dot { width: 18px; height: 18px; border-radius: 50%; flex: none; backg
 .err { color: var(--sp-ink-2, inherit); }
 .err b { color: var(--sp-ink, inherit); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.row { align-items: center; }
+.row .pass { font: inherit; color: inherit; background: var(--sp-field, transparent); border: 1px solid var(--sp-line-strong, rgba(127,127,127,.4)); border-radius: 999px; padding: 6px 14px; min-width: 14em; outline: none; }
+.row .pass:focus { border-color: var(--sp-accent, #8ab4f8); }
+.row .muted { font-size: 12.5px; opacity: .75; }
 button.btn { all: unset; cursor: pointer; font: 600 13px var(--sp-font, sans-serif); padding: 6px 14px; border-radius: 999px; border: 1px solid var(--sp-line-strong, rgba(127,127,127,.3)); color: var(--sp-ink, inherit); }
 button.btn.primary { background: var(--sp-accent, #6677fb); border-color: var(--sp-accent, #6677fb); color: var(--sp-bg, #fff); }
 button.btn:hover { border-color: var(--sp-accent, #6677fb); }
@@ -803,6 +856,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       nomodel: ["<b>No models were offered.</b> Check the provider in settings.", "gear"],
       nourl: ["<b>Add the address of your AI service</b> in settings.", "gear"],
       model: ["<b>That model isn't available here.</b> Pick another one in settings.", "gear"],
+      locked: ["<b>Your keys are locked.</b> Type your passphrase to unlock them.", "unlock"],
     }[kind] || ["<b>Something went wrong:</b> " + esc(String(kind)), "retry"];
   }
   function showError(kind, retry, prov) {
@@ -816,6 +870,15 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     const add = (label, fn, primary) => { const b = document.createElement("button"); b.className = "btn" + (primary ? " primary" : ""); b.type = "button"; b.textContent = label; b.addEventListener("click", fn); row.append(b); };
     if (msg[1] === "gear") add("Open settings", () => openSettings(false), true);
     if (msg[1] === "retry") add("Try again", retry, true);
+    if (msg[1] === "unlock") {
+      row.innerHTML = '<input type="password" class="pass" placeholder="Passphrase" aria-label="Passphrase" autocomplete="current-password">';
+      const input = row.querySelector(".pass"), note = document.createElement("span");
+      const go = () => { note.textContent = "Unlocking…"; unlock(input.value, S.lockHours).then(() => { S = load(); retry(); }, () => { note.textContent = "That passphrase didn't work."; input.select(); }); };
+      add("Unlock", go, true);
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+      note.className = "muted"; row.append(note);
+      setTimeout(() => input.focus(), 0);
+    }
     if (msg[2] === "cloud" && ready("cloud")) add("Use " + PROVIDERS.cloud.label + " for this search", () => run(ctx.query, ctx.results, { force: true, provider: "cloud" }));
   }
 
@@ -827,6 +890,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     boxSkeleton();
     const body = root.querySelector(".body");
     linkHover(root.querySelector(".ov"));
+    if (lockedFor(prov) && !(prov === "local" ? S.localKey : S.cloudKey)) return showError("locked", () => run(query, results, opts), prov);
     if (prov === "cloud" && !ready("cloud")) return showError(S.cloudKey ? "nourl" : "nokey", () => run(query, results, opts), prov);
     const key = cacheKey(prov, query, results);
     const hit = !opts.fresh && cacheGet(key);
@@ -1264,6 +1328,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     };
     const setModel = (m) => { meta.textContent = "· " + (m || P.model(S) || P.label); meta.title = P.label + (m ? " · " + m : ""); };
     if (S.enabled !== true) return fail("<b>Instant Answer is off.</b> Turn it on to get summaries. Nothing has been sent.", [["Turn on Instant Answer", () => openSettings(true)]]);
+    if (lockedFor(prov) && !(prov === "local" ? S.localKey : S.cloudKey)) return fail(errMsg("locked", prov)[0] + " Unlock them in the answer box or in settings.", [["Open settings", () => openSettings(false)]]);
     if (prov === "cloud" && !ready("cloud")) return fail(errMsg(S.cloudKey ? "nourl" : "nokey", prov)[0], [["Open settings", () => openSettings(false)]]);
     setModel("");
     const key = ["sum", prov, P.model(S), page.url].join("\u0001");
@@ -1355,6 +1420,13 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       '<details><summary class="lbl">Instructions for conversations (Markdown)</summary><textarea id="ai-md" rows="8" spellcheck="false" style="width:100%;margin-top:6px;font:12.5px/1.45 var(--sp-mono, Consolas, monospace);color:inherit;background:var(--sp-field, transparent);border:1px solid var(--sp-line-strong, rgba(127,127,127,.3));border-radius:10px;padding:8px 10px"></textarea>' +
       '<span class="status">Empty uses the built-in instructions. {{date}} and {{query}} are filled in.</span></details>' +
       "</fieldset>" +
+      "<fieldset><legend>Key lock</legend>" +
+      '<label class="opt"><input type="checkbox" id="kl-on"><span>Lock my keys with a passphrase<small>Your keys are stored encrypted, so a copy of your browser\'s files or a Violentmonkey backup doesn\'t reveal them. Forget the passphrase and you enter your keys again.</small></span></label>' +
+      '<div class="grp" id="kl-grp"><span class="status" id="kl-state"></span>' +
+      '<span class="lbl">Passphrase</span><input type="password" id="kl-pass" autocomplete="new-password" spellcheck="false">' +
+      '<span class="lbl">Stay unlocked</span><select id="kl-hours"><option value="0">Only on this page</option><option value="1">1 hour</option><option value="8">8 hours</option><option value="24">24 hours</option></select>' +
+      '<div><button type="button" class="btn" id="kl-lock">Lock now</button></div></div>' +
+      "</fieldset>" +
       '<label class="opt" style="margin-bottom:12px"><input type="checkbox" id="ai-src"><span>Show sources with the answer</span></label>' +
       '<div class="actions"><button type="button" class="btn" id="ai-clear">Clear saved answers</button><button type="button" class="btn" id="ai-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div>' +
       "</form>";
@@ -1365,6 +1437,21 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     radio("prov", draft.provider); radio("route", draft.route); radio("think", draft.thinking); radio("mode", draft.mode);
     q("#ai-src").checked = draft.sources; q("#ai-tools").checked = draft.tools; q("#ai-keep").checked = draft.keepChats;
     q("#ai-md").value = draft.agentMd || AGENT_MD;
+    // key lock
+    const klState = () => {
+      const has = !!GM_getValue("vault", null), on = q("#kl-on").checked;
+      q("#kl-grp").hidden = !on && !has;
+      q("#kl-lock").hidden = !has || !SECRET;
+      for (const id of ["#cl-key", "#lc-key"]) q(id).placeholder = has && !SECRET ? "Locked: type your passphrase below to change it" : "";
+      q("#kl-state").textContent = !on && has ? "Saving turns the lock off; your keys are then stored as before." + (SECRET ? "" : " Type your passphrase first.")
+        : has ? (SECRET ? "Unlocked. Type a new passphrase only to change it." : "Locked. Type your passphrase to unlock and change your keys.")
+        : "Pick a passphrase of at least 8 characters.";
+    };
+    q("#kl-on").checked = !!GM_getValue("vault", null);
+    q("#kl-hours").value = String(draft.lockHours);
+    q("#kl-on").addEventListener("change", klState);
+    q("#kl-lock").addEventListener("click", () => { lockNow(); q("#cl-key").value = ""; q("#lc-key").value = ""; klState(); });
+    klState();
     q("#cl-preset").value = draft.cloudPreset; q("#cl-url").value = draft.cloudUrl; q("#cl-key").value = draft.cloudKey;
     q("#lc-key").value = draft.localKey; q("#lc-url").value = draft.localUrl;
     const fill = (sel, list, current, first) => {
@@ -1401,7 +1488,10 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       const prov = checked("prov"), one = checked("route") === "one", custom = q("#cl-preset").value === "custom";
       f.querySelectorAll("[data-for]").forEach((g) => { g.hidden = g.dataset.for !== prov; });
       f.querySelectorAll("[data-strong]").forEach((e) => { e.hidden = one; });
-      f.querySelectorAll("[data-custom]").forEach((e) => { e.hidden = !custom; });
+      const pr = PRESETS[q("#cl-preset").value] || PRESETS.custom;
+      f.querySelectorAll("[data-custom]").forEach((e) => { e.hidden = !custom && !pr.ask; });
+      if (pr.ask && !q("#cl-url").value.trim().startsWith(new URL(pr.url).origin)) q("#cl-url").value = pr.url;
+      q("#cl-url").placeholder = pr.ask ? pr.url : "https://example.com/v1";
       q("#m1-lbl").textContent = one ? "Model" : "Fast model";
       q("#cl-keylbl").textContent = "API key (" + (PRESETS[q("#cl-preset").value] || PRESETS.custom).keyHint + ")";
     };
@@ -1420,17 +1510,42 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     q("#ai-clear").addEventListener("click", (e) => { GM_setValue("cache", {}); GM_setValue("tabs", {}); e.currentTarget.textContent = "Cleared"; });
     ov.addEventListener("click", (e) => { if (e.target === ov) q("#ai-cancel").click(); });
     ov.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") q("#ai-cancel").click(); });
-    f.addEventListener("submit", (e) => {
+    f.addEventListener("submit", async (e) => {
       e.preventDefault();
       const md = q("#ai-md").value.trim();
+      // key lock first: it decides which keys are kept and how they are stored
+      const lockOn = q("#kl-on").checked, pass = q("#kl-pass").value, hours = +q("#kl-hours").value, hasVault = !!GM_getValue("vault", null);
+      const typed = { cloudKey: q("#cl-key").value.trim(), localKey: q("#lc-key").value.trim() };
+      const say = (t) => { const st = q("#kl-state"); st.textContent = t; st.className = "status"; q("#kl-pass").focus(); };
+      let keys = typed, unlockedNow = false;
+      try {
+        if (hasVault && !SECRET) {                           // locked
+          if (pass) { await unlock(pass, hours); unlockedNow = true; keys = { cloudKey: typed.cloudKey || SECRET.cloudKey || "", localKey: typed.localKey || SECRET.localKey || "" }; }
+          else if (lockOn && !typed.cloudKey && !typed.localKey) keys = null;   // nothing changed: keep the locked keys
+          else if (lockOn) return say("Type your passphrase to change locked keys.");
+          else if (!typed.cloudKey && !typed.localKey) return say("Type your passphrase to turn the lock off, or enter your keys again.");
+        }
+        if (lockOn && keys) {
+          // a new passphrase when there is no lock yet, or when one is typed while already unlocked (a change)
+          const fresh = !hasVault || (!!pass && !unlockedNow);
+          if (fresh && pass.length < 8) return say("Pick a passphrase of at least 8 characters.");
+          const salt = fresh ? crypto.getRandomValues(new Uint8Array(16)) : unb64(GM_getValue("vault").salt);
+          const key = fresh ? await deriveKey(pass, salt) : vaultKey;
+          await seal(key, salt, keys);
+          await stayUnlocked(key, hours);
+        }
+        if (!lockOn && hasVault) { GM_setValue("vault", null); lockNow(); }
+      } catch (err) { return say("That passphrase didn't work."); }
       S = Object.assign(load(), cloudDraft(), {
         enabled: q("#ai-on").checked, provider: checked("prov"), route: checked("route"), thinking: checked("think"), mode: checked("mode"),
         sources: q("#ai-src").checked, tools: q("#ai-tools").checked, keepChats: q("#ai-keep").checked,
         agentMd: md && md !== AGENT_MD.trim() ? md : "",
         modelFast: q("#m-fast").value, modelStrong: q("#m-strong").value,
         localUrl: q("#lc-url").value.trim() || DEFAULTS.localUrl, localKey: q("#lc-key").value.trim(), localModel: q("#lc-model").value,
+        lockHours: hours,
       });
-      save(S); close(); start(true);
+      if (keys) { S.cloudKey = keys.cloudKey; S.localKey = keys.localKey; }
+      save(S); S = load(); close(); start(true);
     });
     setTimeout(() => q("#ai-on").focus(), 0);
   }
@@ -1470,7 +1585,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
   // Start once the page has finished loading (Startpage re-renders while loading), and the results are there.
   let tries = 0;
   // Startpage draws its own answer boxes a moment after the results; give them 0.4 s before deciding.
-  const wait = () => { if ($(".w-gl .result") || tries++ > 40) setTimeout(() => start(false), 400); else setTimeout(wait, 100); };
+  const wait = () => { if ($(".w-gl .result") || tries++ > 40) setTimeout(() => resume().finally(() => start(false)), 400); else setTimeout(wait, 100); };
   if (document.readyState === "complete") setTimeout(wait, 50);
   else window.addEventListener("load", () => setTimeout(wait, 50), { once: true });
 })();

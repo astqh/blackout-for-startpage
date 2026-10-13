@@ -3,6 +3,29 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.3.0 · 12 October 2026
+
+Tested on Startpage as it was on 12 October 2026: the theme's dictionary box on the live site in Firefox with Stylus,
+and the key lock in the demo in Chromium. Instant Answer not yet tested with a real AI service.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.1 |
+| Tweaks | 1.1.0 |
+| Home widgets | 1.2.0 |
+| Instant Answer | 2.3.0 |
+| F1 card | 1.3.2 |
+| Quick answers | 1.1.0 |
+
+- Instant Answer runs sealed off from Startpage's own scripts, so they can't see your key while it works.
+- Instant Answer has an optional key lock: your keys are stored encrypted with a passphrase (AES-GCM, PBKDF2 with
+  600,000 rounds) and unlocked for as long as you choose.
+- The theme styles Startpage's dictionary answer to match: a black card, quiet synonym chips and accent links.
+- Instant Answer remembers each service's model list separately.
+
+Page parts the scripts rely on, added in this release: dictionary `.dictionary-feedback-container`, `.dictionary`,
+`.synonym`, `.dictionary-footer`.
+
 ## 1.2.0 · 12 October 2026
 
 Tested on Startpage as it was on 12 October 2026: the home widgets on the live site in Firefox with Violentmonkey and

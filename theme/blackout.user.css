@@ -1,7 +1,7 @@
 /* ==UserStyle==
 @name         Blackout for Startpage
 @namespace    blackout-for-startpage
-@version      1.2.0
+@version      1.2.1
 @license      MIT
 @homepageURL  https://github.com/astqh/blackout-for-startpage
 @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -168,6 +168,21 @@
   /* "Did you mean" spelling suggestion */
   .ss-gl-result { background: var(--sp-surface) !important; border-color: var(--sp-line-strong) !important; color: var(--sp-ink) !important; }
   .ss-gl-result a, .ss-gl-result a *, .ss-gl-result i, .ss-gl-result b { color: var(--sp-link) !important; }
+
+  /* dictionary answer (Oxford): a black card like the rest, accent links, quiet synonym chips */
+  .dictionary-feedback-container .dictionary { background: var(--sp-surface) !important; border: 1px solid var(--sp-line) !important; border-radius: 16px !important; color: var(--sp-ink) !important; }
+  .dictionary-feedback-container .dictionary h2 { color: var(--sp-ink) !important; }
+  .dictionary-feedback-container .lexical-type { color: var(--sp-muted) !important; }
+  .dictionary-feedback-container .definition, .dictionary-feedback-container .definition-container { color: var(--sp-ink-2) !important; }
+  .dictionary-feedback-container .synonym { background: var(--sp-surface-2) !important; border: 1px solid var(--sp-line) !important; }
+  .dictionary-feedback-container .synonym button { background: transparent !important; color: var(--sp-ink-2) !important; }
+  .dictionary-feedback-container .synonym:hover { border-color: var(--sp-accent) !important; }
+  .dictionary-feedback-container .synonym:hover button { color: var(--sp-ink) !important; }
+  .dictionary-feedback-container .mask { background: linear-gradient(transparent, var(--sp-surface)) !important; }
+  .dictionary-footer, .dictionary-attribution-label { color: var(--sp-muted) !important; }
+  .dictionary-footer a, .dictionary-footer a *, .dictionary-footer .hide-dictionary { color: var(--sp-link) !important; }
+  .dictionary-footer .feedback-rating, .dictionary-footer .feedback-finish { background: var(--sp-surface) !important; border: 1px solid var(--sp-line) !important; color: var(--sp-ink) !important; }
+  .dictionary-footer .feedback-button { color: var(--sp-ink-2) !important; }
 
   /* page footer on every page: wave image, filler strip, footer itself */
   img[src*="curl-footer"] { display: none !important; }
