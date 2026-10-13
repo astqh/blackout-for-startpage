@@ -61,7 +61,7 @@ themselves.
 - **⋮ menu.** Click ⋮ next to a result's address to summarize the page, open it in Anonymous View, copy the link,
   or pin or hide that site.
 - **Keys.** `j` and `k` move between results, `Enter` opens one and `?` lists all keys.
-- **Home widgets.** Click **Customize** under the widgets to add, hide, move, resize or set them up. **Look** sets your colours.
+- **Home widgets.** Click **Customize** under the widgets, or hold any widget for a moment, to add, hide, move, resize or set them up. **Look** sets your colours.
 - **Instant Answer.** Click **Turn on Instant Answer** above your results, then pick a service. The expand button next to an answer continues it as a conversation.
 - **F1 card.** Search things like `monza qualifying`, `f1 standings` or `next f1 race`.
 - **Quick answers.** Search `5 minute timer`, `#a3c4ff`, `flip a coin`, `roll 2d6` or `100 euros`.
@@ -121,9 +121,13 @@ and timer can be added. Under **Customize** you can set the clock's cities, your
 shortcuts and your currency. Shortcuts show a coloured letter, so no site is contacted until you click one. Notes
 stay in your browser. Currency, °C or °F and the 12 or 24 hour clock start from your browser's language setting.
 
+- **Move.** Hold any widget for half a second, or open Customize, then drag it anywhere on the widget. While you
+  edit, the widgets wiggle, the one you carry follows the pointer, and the others slide out of its way. Click
+  **Done** when you're finished.
 - **Resize.** In Customize, drag the corner at the bottom right of a widget. Across it snaps to a third, half, two
-  thirds or the full width. Down sets its height. Text and spacing grow and shrink with the widget. Arrow keys on
-  the corner work too, and a double-click resets it.
+  thirds or the full width. Down sets its height. Everything inside, text, numbers, pictures and spacing, scales to
+  fill the new size, and a small widget drops its title so the rest can be bigger. Arrow keys on the corner work
+  too, and a double-click resets it.
 - **Look.** In Customize, click **Look** to pick your own accent colour, and colours for the background, the search
   bar and the widgets. You can also use a picture from your computer as the background, and turn on **Glass** for
   see-through widgets and search bar. Text switches between dark and light by itself so it stays readable. The
@@ -135,8 +139,9 @@ Pick where the answers come from.
 
 - **An online AI service** that works like the OpenAI API, with your own key. OpenCode Go, OpenAI, OpenRouter,
   Groq, Mistral and DeepSeek are in the list, and any other address works too.
-- **Your computer**, with a model app such as LM Studio, Ollama or llama.cpp. Everything stays on your computer. It
-  uses whichever model is loaded and never switches it.
+- **Your computer**, with a model app such as LM Studio, Ollama or llama.cpp. Everything stays on your computer. The
+  settings have the usual address of each app. It uses whichever model is loaded and never switches it. If your app
+  doesn't say which model is loaded, pick one in settings.
 
 **Models.** With **Choose for me**, short answers go to a fast model and harder questions and conversations go to a
 stronger one. Both are picked from the service's own model list unless you pick them yourself. You can also use one

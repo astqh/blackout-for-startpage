@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Home widgets for Startpage
 // @namespace    blackout-for-startpage/home
-// @version      1.1.0
+// @version      1.2.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -119,7 +119,7 @@
     return css;
   }
   function pageLook() {
-    const css = lookCSS() + extraCSS.join("");
+    const css = lookCSS() + extraCSS.map((x) => (typeof x === "function" ? x() : x)).join("");
     lookStyle.textContent = css;
     if (css && !lookStyle.isConnected) document.documentElement.append(lookStyle);
     else if (!css) lookStyle.remove();
@@ -159,7 +159,6 @@
 
   const ICON = {
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>',
-    grip: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
     left: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>',
     right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -195,8 +194,8 @@
   }
 
   // ---------------------------------------------------------------- look
-  // Text and spacing scale with each widget: --u is 1% of the widget's width (or of its height, for widgets given a
-  // height), and sizes inside a widget are set from it or in em. The Look panel sets the --w* colours on the host.
+  // Everything inside a widget is sized in em, so one font size per widget (--fs, set by fit()) scales its text,
+  // spacing and pictures together. The Look panel sets the --w* colours on the host.
   const CSS = `
 :host { all: initial; display: block; width: min(980px, calc(100% - 32px)); margin: 30px auto 24px; position: relative; z-index: 1;
   --bg: var(--wbg, var(--sp-surface, #ffffff)); --bg2: var(--wbg2, var(--sp-surface-2, #f1f3f4)); --ink: var(--wink, var(--sp-ink, #1f1f1f)); --ink2: var(--wink2, var(--sp-ink-2, #474747));
@@ -211,13 +210,18 @@
 [hidden] { display: none !important; }
 .wrap { font: 14px/1.45 var(--font); color: var(--ink); container: home / inline-size; }
 .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
-.card { position: relative; grid-column: span 2; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; min-height: 150px; display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
+.card { font-size: var(--fs, 14px); position: relative; grid-column: span 2; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; min-height: 150px; display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
 .card[data-w="3"] { grid-column: span 3; } .card[data-w="4"] { grid-column: span 4; } .card[data-w="5"] { grid-column: span 5; } .card[data-w="6"] { grid-column: span 6; }
 .card.sized { container-type: size; min-height: 0; }
-.ch, .cb { --u: 1cqi; --pad: clamp(10px, calc(var(--u) * 5.2), 30px); font-size: clamp(12px, calc(var(--u) * 4.6), 19px); }
-.card.sized > .ch, .card.sized > .cb { --u: min(1cqi, 1.6cqb); }
+.ch, .cb { --pad: 1.15em; }
 :host([data-glass]) .card, :host([data-glass]) .editing .bar, :host([data-glass]) .look { background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(18px) saturate(1.4); border-color: color-mix(in srgb, var(--ink) 15%, transparent); }
-.card.dragging { opacity: .55; outline: 2px dashed var(--acc); outline-offset: 2px; }
+/* iOS style editing: the widgets wiggle; the one you hold lifts and follows the pointer, and the others glide aside */
+.editing .card { touch-action: none; cursor: grab; animation: wig .26s ease-in-out infinite alternate; }
+.editing .card:nth-child(2n) { animation-delay: -.13s; animation-duration: .3s; }
+.editing .card:nth-child(3n) { animation-delay: -.07s; }
+@keyframes wig { from { rotate: -.45deg; } to { rotate: .45deg; } }
+.card.lifted { animation: none; z-index: 5; cursor: grabbing; box-shadow: 0 18px 40px rgba(0,0,0,.45); transition: box-shadow .18s, scale .18s; scale: 1.04; }
+.card.pressing { transition: scale .5s ease-out; scale: .97; }
 .card.resizing { outline: 2px dashed var(--acc); outline-offset: 2px; }
 .moving, .moving * { user-select: none; cursor: grabbing !important; }
 .sizing, .sizing * { user-select: none; cursor: nwse-resize !important; }
@@ -228,10 +232,12 @@
 .ib { all: unset; cursor: pointer; width: 2em; height: 2em; border-radius: .57em; display: grid; place-items: center; color: var(--muted); }
 .ib:hover { background: var(--bg2); color: var(--ink); }
 .ib svg { width: 1.15em; height: 1.15em; }
-.ib.drag { cursor: grab; touch-action: none; }
-.ib.drag:active { cursor: grabbing; }
 .cb { flex: 1; display: flex; flex-direction: column; gap: .6em; min-width: 0; min-height: 0; padding: .55em var(--pad) var(--pad); }
-.card.sized > .cb { overflow: auto; scrollbar-width: thin; }
+.card.sized > .cb { overflow: hidden; }
+.editing .card.sized > .cb { overflow: auto; scrollbar-width: thin; }   /* settings shown while editing can scroll */
+.card.compact > .ch { display: none; }   /* small widgets drop their title, like iOS widgets */
+.editing .card.compact:not(.measure) > .ch { display: flex; }
+.card.measure { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; animation: none; }
 .rs { all: unset; position: absolute; right: 3px; bottom: 3px; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); cursor: nwse-resize; touch-action: none; }
 .rs:hover, .rs:focus-visible { color: var(--ink); background: var(--bg2); }
 .rs svg { width: 12px; height: 12px; }
@@ -269,7 +275,7 @@ select option { background: var(--bg); color: var(--ink); }
 .look .sp { flex: 1; }
 .look label.row { color: var(--ink2); }
 /* clock */
-.time { font: 300 clamp(30px, calc(var(--u) * 14.8), 170px)/1.05 var(--font); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.time { font: 300 3.2em/1.05 var(--font); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
 .time small { font-size: .39em; color: var(--muted); margin-left: .1em; letter-spacing: 0; }
 .date { color: var(--ink2); }
 .zones { list-style: none; margin: .3em 0 0; padding: 0; display: grid; gap: 2px; }
@@ -278,8 +284,8 @@ select option { background: var(--bg); color: var(--ink); }
 .zones li .d { color: var(--muted); font-size: .86em; }
 /* weather */
 .wx { display: flex; align-items: center; gap: 1em; }
-.wx svg { width: clamp(30px, calc(var(--u) * 14.2), 130px); height: clamp(30px, calc(var(--u) * 14.2), 130px); color: var(--acc); flex: none; }
-.temp { font: 300 clamp(28px, calc(var(--u) * 13.5), 150px)/1 var(--font); font-variant-numeric: tabular-nums; }
+.wx svg { width: 3.1em; height: 3.1em; color: var(--acc); flex: none; }
+.temp { font: 300 2.95em/1 var(--font); font-variant-numeric: tabular-nums; }
 .days { display: grid; grid-template-columns: repeat(3, 1fr); gap: .43em; margin-top: auto; }
 .days div { background: var(--bg2); border-radius: .7em; padding: .43em .57em; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .89em; font-variant-numeric: tabular-nums; }
 .days svg { width: 1.6em; height: 1.6em; color: var(--ink2); }
@@ -316,7 +322,7 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
 .fx b { font-weight: 600; }
 .amount { width: 8em; }
 /* timer */
-.tm { font: 300 clamp(30px, calc(var(--u) * 14.2), 160px)/1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.tm { font: 300 3.1em/1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .tm.done { color: var(--acc); animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .35; } }
 .presets { display: flex; gap: .43em; flex-wrap: wrap; }
@@ -327,9 +333,9 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
 @container home (max-width: 859px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .card[data-w="5"], .card[data-w="6"] { grid-column: span 4; } }
 @container home (max-width: 539px) {
   .grid { grid-template-columns: minmax(0, 1fr); } .card, .card[data-w] { grid-column: auto; }
-  .card.sized { height: auto !important; min-height: 150px; container-type: inline-size; } .card.sized > .ch, .card.sized > .cb { --u: 1cqi; }
+  .card.sized { height: auto !important; min-height: 150px; container-type: inline-size; }
   .rs { display: none; } .addform { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .tm.done { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tm.done, .editing .card { animation: none; } .card.lifted, .card.pressing { transition: none; } }
 `;
 
   // ---------------------------------------------------------------- widgets
@@ -589,6 +595,7 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     wrap.classList.toggle("editing", editing);
     grid.textContent = "";
     for (const id of S.order) if (known(id) && S.on[id]) grid.append(card(id));
+    fitAll();
     if (!editing) lookOpen = false;
     renderLook();
     drawBar();
@@ -602,7 +609,63 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     c.dataset.w = z.w;
     c.classList.toggle("sized", z.h > 0);
     c.style.height = z.h > 0 ? z.h + "px" : "";
+    fit(c);
   }
+  // One font size per widget scales everything in it. A widget without a height scales with its width (and grows
+  // taller with it). A widget with a height gets the largest size whose content still fits the box both ways, as the
+  // widget looks normally: while editing, its settings don't count (they scroll), so it is measured on a hidden copy.
+  const FIT = { min: 8, autoMax: 22, max: 72 };
+  const sizeVar = (el, v) => el.style.setProperty("--fs", v.toFixed(2) + "px");
+  function largestFit(el, w, h) {
+    const body = el.querySelector(".cb");
+    const fits = () => body.scrollHeight <= body.clientHeight + 1 && body.scrollWidth <= body.clientWidth + 1;
+    let lo = FIT.min, hi = Math.min(FIT.max, Math.max(FIT.min, w * 0.12, h * 0.12));
+    sizeVar(el, hi);
+    if (fits()) return hi;
+    for (let i = 0; i < 8; i++) { const mid = (lo + hi) / 2; sizeVar(el, mid); if (fits()) lo = mid; else hi = mid; }
+    return lo;
+  }
+  function measureAsShown(c, w, h, compact) {
+    const id = c.dataset.id, def = W[id];
+    if (!editing || !def) { c.classList.toggle("compact", compact); return largestFit(c, w, h); }   // other scripts' widgets look the same while editing
+    const m = document.createElement("section");
+    m.className = "card sized measure" + (compact ? " compact" : ""); m.dataset.w = c.dataset.w;
+    m.style.width = c.offsetWidth + "px"; m.style.height = c.offsetHeight + "px";
+    m.innerHTML = '<div class="ch"><h2>' + esc(def.title) + '</h2><div class="tools"></div></div><div class="cb"></div>';
+    const had = new Set(timers);
+    editing = false;
+    try { def.render(m.querySelector(".cb")); } finally { editing = true; }
+    for (const t of timers) if (!had.has(t)) { clearInterval(t); timers.delete(t); }   // the copy's clock doesn't tick
+    root.querySelector(".wrap").append(m);
+    try { return largestFit(m, w, h); } finally { m.remove(); }
+  }
+  const fitted = new WeakMap();   // card -> what it was fitted for, so unchanged widgets are skipped
+  function fit(c, force) {
+    const body = c.querySelector(".cb"), w = c.clientWidth;
+    if (!body || !w) return;
+    const fixed = c.classList.contains("sized") && getComputedStyle(c).containerType === "size";   // a height that applies
+    const size = (v) => sizeVar(c, v);
+    if (!fixed) {
+      c.classList.remove("compact");
+      const fs = Math.max(12, Math.min(FIT.autoMax, w * 0.046)), was = fitted.get(c);
+      if (force || !was || was.fs !== fs) size(fs);
+      fitted.set(c, { fs });
+      return;
+    }
+    const h = c.clientHeight, sig = w + "x" + h + ":" + editing + ":" + body.getElementsByTagName("*").length + ":" + (host ? host.childElementCount : 0);
+    const was = fitted.get(c);
+    if (!force && was && was.sig === sig) return;
+    // a small widget without its title often fits much bigger text: use that when it does
+    let v = measureAsShown(c, w, h, false), compact = false;
+    if (v < 14) { const v2 = measureAsShown(c, w, h, true); if (v2 > v * 1.12) { v = v2; compact = true; } }
+    c.classList.toggle("compact", compact);
+    size(v);
+    fitted.set(c, { sig });
+  }
+  function fitAll(force) { if (root) for (const c of root.querySelectorAll(".grid > .card")) fit(c, force); }
+  // widgets fill in later (weather, rates, the F1 card) and windows change size: fit again, at most once a frame
+  let fitQueued = false;
+  const fitSoon = () => { if (fitQueued) return; fitQueued = true; requestAnimationFrame(() => { fitQueued = false; fitAll(); }); };
   function card(id) {
     const def = W[id] || EXT[id];
     const c = document.createElement("section");
@@ -610,8 +673,7 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     c.dataset.id = id;
     c.setAttribute("aria-label", def.title);
     c.innerHTML = '<div class="ch"><h2>' + esc(def.title) + '</h2><div class="tools">' + (editing
-      ? '<button class="ib drag" type="button" aria-label="Drag to move ' + esc(def.title) + '" title="Drag to move">' + ICON.grip + "</button>" +
-        '<button class="ib" type="button" data-move="-1" aria-label="Move ' + esc(def.title) + ' earlier" title="Move earlier">' + ICON.left + "</button>" +
+      ? '<button class="ib" type="button" data-move="-1" aria-label="Move ' + esc(def.title) + ' earlier" title="Move earlier">' + ICON.left + "</button>" +
         '<button class="ib" type="button" data-move="1" aria-label="Move ' + esc(def.title) + ' later" title="Move later">' + ICON.right + "</button>" +
         '<button class="ib" type="button" data-hide aria-label="Hide ' + esc(def.title) + '" title="Hide">' + ICON.close + "</button>" : "") + '</div></div><div class="cb"></div>';
     const body = c.querySelector(".cb");
@@ -714,8 +776,8 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     const move = (ev) => {
       z.w = Math.max(2, Math.min(cols, Math.round((r.width + ev.clientX - x0 + gap) / (colW + gap))));
       if (Math.abs(ev.clientY - y0) > 6) tall = true;
-      if (tall) z.h = Math.max(120, Math.round((r.height + ev.clientY - y0) / 10) * 10);
-      applySize(c, z);
+      if (tall) z.h = Math.max(100, Math.round((r.height + ev.clientY - y0) / 10) * 10);
+      if (z.w !== c._w || z.h !== c._h) { c._w = z.w; c._h = z.h; applySize(c, z); }
     };
     const up = () => {
       window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", up, true); window.removeEventListener("pointercancel", up, true);
@@ -776,35 +838,108 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
       mv.focus();
     }
   }
-  // Drag a card by its handle; the others make room as you go.
+  // Moving widgets, like editing an iOS home screen. Hold a widget for half a second to start editing (and keep
+  // holding to carry it), or open Customize. While editing, press anywhere on a widget and move: it lifts and follows
+  // the pointer, and the others glide out of the way. Only transforms move during the drag, so it stays smooth.
+  const NO_DRAG = "input, textarea, select, button, label, [contenteditable], .rs, .look";
+  let press = null;
   function onPointerDown(e) {
     const rs = e.target.closest(".rs");
     if (rs && editing && e.button === 0) return startResize(e, rs.closest(".card"));
-    const h = e.target.closest(".drag");
-    if (!h || !editing || e.button !== 0) return;
-    const c = h.closest(".card"), grid = c.parentElement;
-    let last = null;                                  // the card last swapped with: wait until the pointer leaves it
-    e.preventDefault();
-    c.classList.add("dragging");
-    root.querySelector(".wrap").classList.add("moving");
-    // follow the pointer on the whole window: the card itself moves in the page as you drag, so it can't hold on to it
-    const move = (ev) => {
-      const el = root.elementFromPoint(ev.clientX, ev.clientY), over = el && el.closest && el.closest(".card");
-      if (over !== last) last = null;
-      if (!over || over === c || over === last || over.parentElement !== grid) return;
-      last = over;
-      const r = over.getBoundingClientRect();
-      const after = ev.clientY > r.bottom - r.height / 3 || (ev.clientY >= r.top + r.height / 3 && ev.clientX > r.left + r.width / 2);
-      if (after) over.after(c); else over.before(c);
-    };
-    const up = () => {
-      window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", up, true); window.removeEventListener("pointercancel", up, true);
-      c.classList.remove("dragging");
-      root.querySelector(".wrap").classList.remove("moving");
-      orderFromGrid();
-    };
-    window.addEventListener("pointermove", move, true); window.addEventListener("pointerup", up, true); window.addEventListener("pointercancel", up, true);
+    const c = e.target.closest(".grid > .card");
+    if (!c || e.button !== 0 || press) return;
+    if (editing ? e.target.closest(NO_DRAG) : e.target.closest("input, textarea, select, [contenteditable]")) return;
+    press = { id: c.dataset.id, x: e.clientX, y: e.clientY, last: e, card: c, timer: 0, drag: null, held: false, raf: 0 };
+    if (editing) e.preventDefault();   // no text selection while carrying a widget
+    else {
+      c.classList.add("pressing");
+      press.timer = setTimeout(() => {   // held long enough: edit mode, and carry this widget on
+        if (!press) return;
+        c.classList.remove("pressing");
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch (x) { /* not on this device */ }
+        editing = true; draw();
+        press.card = root.querySelector('.grid > .card[data-id="' + press.id + '"]');
+        press.held = true;
+        if (press.card) beginDrag(press.last);
+      }, 480);
+    }
+    window.addEventListener("pointermove", onPressMove, true);
+    window.addEventListener("pointerup", onPressEnd, true);
+    window.addEventListener("pointercancel", onPressEnd, true);
   }
+  function onPressMove(ev) {
+    if (!press) return;
+    press.last = ev;
+    const far = Math.hypot(ev.clientX - press.x, ev.clientY - press.y);
+    if (!editing) { if (far > 8) cancelPress(); return; }   // moved before the hold finished: an ordinary drag or scroll
+    if (!press.drag) { if (far > 4) beginDrag(ev); else return; }
+    ev.preventDefault();
+    if (!press.raf) press.raf = requestAnimationFrame(() => { if (press) { press.raf = 0; dragTo(press.last); } });
+  }
+  function cancelPress() {
+    if (!press) return;
+    clearTimeout(press.timer);
+    if (press.card) press.card.classList.remove("pressing");
+    window.removeEventListener("pointermove", onPressMove, true);
+    window.removeEventListener("pointerup", onPressEnd, true);
+    window.removeEventListener("pointercancel", onPressEnd, true);
+    press = null;
+  }
+  const gridPos = (el, grid) => ({ x: el.offsetLeft - grid.offsetLeft, y: el.offsetTop - grid.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
+  function beginDrag(ev) {
+    const c = press.card, grid = c.parentElement, g = grid.getBoundingClientRect(), p = gridPos(c, grid);
+    press.drag = { grid, grabX: ev.clientX - g.left - p.x, grabY: ev.clientY - g.top - p.y, last: null };
+    c.classList.remove("pressing"); c.classList.add("lifted");
+    root.querySelector(".wrap").classList.add("moving");
+    dragTo(ev);
+  }
+  // follow the pointer; when it is over another widget, move into that widget's place and let the others glide
+  function dragTo(ev) {
+    const d = press.drag, c = press.card, grid = d.grid, g = grid.getBoundingClientRect();
+    const px = ev.clientX - g.left, py = ev.clientY - g.top;
+    let over = null;
+    for (const o of grid.children) {
+      if (o === c) continue;
+      const r = gridPos(o, grid);
+      if (px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h) { over = o; break; }
+    }
+    if (over !== d.last) d.last = null;
+    if (over && over !== d.last) {
+      d.last = over;
+      const cards = Array.from(grid.children), before = new Map(cards.map((o) => [o, gridPos(o, grid)]));
+      if (cards.indexOf(over) < cards.indexOf(c)) over.before(c); else over.after(c);
+      for (const o of cards) {
+        if (o === c) continue;
+        const p0 = before.get(o), p1 = gridPos(o, grid);
+        if (p0.x === p1.x && p0.y === p1.y) continue;
+        o.style.transition = "none";
+        o.style.transform = "translate(" + (p0.x - p1.x) + "px," + (p0.y - p1.y) + "px)";
+        o.getBoundingClientRect();
+        o.style.transition = "transform .26s cubic-bezier(.2,.8,.2,1)";
+        o.style.transform = "";
+      }
+    }
+    const p = gridPos(c, grid);
+    c.style.transition = "none";
+    c.style.transform = "translate(" + (px - d.grabX - p.x) + "px," + (py - d.grabY - p.y) + "px)";
+  }
+  function onPressEnd() {
+    if (!press) return;
+    const c = press.card, dragged = !!press.drag, held = press.held;
+    if (press.raf) cancelAnimationFrame(press.raf);
+    cancelPress();
+    if (dragged && c) {
+      c.style.transition = "transform .24s cubic-bezier(.2,.8,.2,1)";
+      c.style.transform = "";
+      c.classList.remove("lifted");
+      root.querySelector(".wrap").classList.remove("moving");
+      setTimeout(() => { c.style.transition = ""; for (const o of c.parentElement ? c.parentElement.children : []) o.style.transition = ""; }, 300);
+      orderFromGrid();
+    }
+    // the click that ends a drag or a long press doesn't open or press anything
+    if (dragged || held) window.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); }, { capture: true, once: true });
+  }
+  function onContextMenu(e) { if (press && (press.held || press.drag)) e.preventDefault(); }
 
   function isDark() {
     const c = (getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g) || []).map(Number);
@@ -832,6 +967,7 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     pageTitle = document.title;
     root.addEventListener("click", onClick);
     root.addEventListener("pointerdown", onPointerDown);
+    root.addEventListener("contextmenu", onContextMenu);
     root.addEventListener("keydown", onKeyDown);
     root.addEventListener("dblclick", onDblClick);
     root.addEventListener("input", onLookInput);
@@ -840,6 +976,9 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     for (const type of ["keydown", "keyup", "keypress", "input"]) host.addEventListener(type, (e) => e.stopPropagation());
     if (!place()) { host = null; return; }
     draw();
+    new ResizeObserver(fitSoon).observe(root.querySelector(".grid"));
+    new MutationObserver(fitSoon).observe(root.querySelector(".grid"), { childList: true, subtree: true });
+    new MutationObserver(fitSoon).observe(host, { childList: true, subtree: true });   // widgets from other scripts
     window.dispatchEvent(new CustomEvent("sp-home:ready"));
     let queued = false;
     new MutationObserver(() => {

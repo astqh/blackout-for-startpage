@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Instant Answer for Startpage
 // @namespace    blackout-for-startpage/instant-answer
-// @version      2.0.0
+// @version      2.1.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -84,7 +84,9 @@
   }
   const save = (s) => GM_setValue("settings", s);
 
-  // Online services that speak the OpenAI chat API. "custom" takes any address.
+  // Online services that speak the OpenAI chat API. "custom" takes any address. Optional per service: only / not
+  // (which of its models to use), fast / strong (its usual picks when its model list can't be read), fixed (always use
+  // fast / strong: the service picks the actual model itself).
   const PRESETS = {
     opencode: { label: "OpenCode Go", url: "https://opencode.ai/zen/go/v1", keyHint: "from the OpenCode Zen console" },
     openai: { label: "OpenAI", url: "https://api.openai.com/v1", keyHint: "from platform.openai.com" },
@@ -236,8 +238,9 @@
           if (r.status >= 400) return reject(new Error("HTTP " + r.status));
           try {
             const j = JSON.parse(r.responseText);
-            const list = (j.data || j.models || []).map((m) => ({ id: m.id || m.name, loaded: m.status && (m.status.value || m.status) === "loaded" }))
-              .filter((m) => m.id && !NOT_CHAT.test(m.id));
+            const pr = providerId === "cloud" ? presetOf(s) : {};
+            const list = (j.data || j.models || []).map((m) => ({ id: m.id || m.name, loaded: m.status && (m.status.value || m.status) === "loaded", told: !!m.status }))
+              .filter((m) => m.id && !NOT_CHAT.test(m.id) && (!pr.only || pr.only.test(m.id)) && !(pr.not && pr.not.test(m.id)));
             if (providerId !== "local") { const all = GM_getValue("models", {}); all[base] = { at: Date.now(), list }; GM_setValue("models", all); }
             resolve(list);
           } catch (e) { reject(new Error("bad reply")); }
@@ -247,7 +250,9 @@
       }, 8000);
     });
   }
-  function autoModel(list, kind) {
+  function autoModel(list, kind, pr = presetOf(S)) {
+    const usual = pr[kind];
+    if (usual && (pr.fixed || list.some((x) => x.id === usual))) return usual;
     if (!list.length) return "";
     for (const re of kind === "strong" ? STRONG : FAST) { const m = list.find((x) => re.test(x.id)); if (m) return m.id; }
     return list[0].id;
@@ -269,13 +274,15 @@
       const loaded = list.find((m) => m.loaded);
       if (loaded) return loaded.id;
       if (list.length === 1) return list[0].id;              // single-model server: nothing to swap
-      throw new Error("noloaded");
+      throw new Error(list.some((m) => m.told) ? "noloaded" : "pickmodel");   // some servers don't say what is loaded
     }
     const level = taskLevel(task, text);
     const picked = level === "strong" ? S.modelStrong || S.modelFast : S.modelFast;
     if (picked && (level === "fast" || S.modelStrong || S.route === "one")) return picked;
+    const pr = presetOf(S);
+    if (pr.fixed && pr[level]) return picked || pr[level];
     let list = [];
-    try { list = await listModels("cloud", S); } catch (e) { if (picked) return picked; throw e; }
+    try { list = await listModels("cloud", S); } catch (e) { if (picked || pr[level]) return picked || pr[level]; throw e; }
     const id = (level === "strong" && S.modelStrong) || autoModel(list, level) || picked;
     if (!id) throw new Error("nomodel");
     return id;
@@ -559,6 +566,9 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
 .panel label.opt { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
 .panel label.opt span small { display: block; color: var(--sp-muted, inherit); font-size: 12.5px; }
 .panel input[type=text], .panel input[type=password], .panel select { width: 100%; font: 14px var(--sp-font, sans-serif); color: inherit; background: var(--sp-field, transparent); border: 1px solid var(--sp-line-strong, rgba(127,127,127,.3)); border-radius: 10px; padding: 8px 10px; }
+.panel .quick { font-size: 12.5px; color: var(--sp-muted, #8a8a94); }
+.panel .quick button { all: unset; cursor: pointer; color: var(--sp-accent, #8ab4f8); text-decoration: underline; text-underline-offset: 2px; margin-right: 6px; }
+.panel .quick button:focus-visible { outline: 2px solid var(--sp-accent, #8ab4f8); outline-offset: 2px; }
 .panel .grp { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--sp-surface-2, rgba(127,127,127,.08)); }
 .panel .grp[hidden] { display: none; }
 .panel .lbl { font-size: 12.5px; color: var(--sp-ink-2, inherit); }
@@ -789,6 +799,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
         : ["<b>Couldn't reach " + esc(P.label) + ".</b> Check your connection and the address in settings, then try again.", "retry"],
       timeout: ["<b>The answer took too long.</b> Try again, or pick a faster model in settings.", "retry"],
       noloaded: ["<b>No local model is loaded right now.</b> Load one in your model server (or pick one in settings), then try again.", "retry", "cloud"],
+      pickmodel: ["<b>Pick a model first.</b> Your model server doesn't say which model is loaded, so choose one in Instant Answer settings.", "gear"],
       nomodel: ["<b>No models were offered.</b> Check the provider in settings.", "gear"],
       nourl: ["<b>Add the address of your AI service</b> in settings.", "gear"],
       model: ["<b>That model isn't available here.</b> Pick another one in settings.", "gear"],
@@ -1318,7 +1329,8 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       '<span class="status" id="cl-status"></span></div>' +
       opt("prov", "local", "Your computer", "Any OpenAI-compatible server on your PC (llama.cpp, LM Studio, Ollama…). Private and free; only works while it is running.") +
       '<div class="grp" data-for="local"><span class="lbl">Address</span><input type="text" id="lc-url" spellcheck="false">' +
-      '<span class="lbl">API key (the router key)</span><input type="password" id="lc-key" autocomplete="off" spellcheck="false">' +
+      '<span class="quick" id="lc-quick">Usual addresses: <button type="button" data-url="http://127.0.0.1:8080/v1">llama.cpp</button> <button type="button" data-url="http://127.0.0.1:1234/v1">LM Studio</button> <button type="button" data-url="http://127.0.0.1:11434/v1">Ollama</button></span>' +
+      '<span class="lbl">API key (only if your server needs one)</span><input type="password" id="lc-key" autocomplete="off" spellcheck="false">' +
       '<span class="lbl">Model</span><select id="lc-model"></select><span class="status" id="lc-status"></span></div>' +
       "</fieldset>" +
       '<fieldset data-for="cloud"><legend>Models</legend>' +
@@ -1372,8 +1384,8 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
         if (!PROVIDERS.cloud.base(tmp)) { st.textContent = "Add the address first."; st.className = "status"; return; }
         st.textContent = "Checking…"; st.className = "status";
         listModels("cloud", tmp, true).then((list) => {
-          fill(q("#m-fast"), list, q("#m-fast").value, "Choose automatically (now " + (autoModel(list, "fast") || "none") + ")");
-          fill(q("#m-strong"), list, q("#m-strong").value, "Choose automatically (now " + (autoModel(list, "strong") || "none") + ")");
+          fill(q("#m-fast"), list, q("#m-fast").value, "Choose automatically (now " + (autoModel(list, "fast", PRESETS[q("#cl-preset").value] || PRESETS.custom) || "none") + ")");
+          fill(q("#m-strong"), list, q("#m-strong").value, "Choose automatically (now " + (autoModel(list, "strong", PRESETS[q("#cl-preset").value] || PRESETS.custom) || "none") + ")");
           st.textContent = "Connected · " + list.length + " models"; st.className = "status ok";
         }).catch((e) => { st.className = "status"; st.textContent = e.message === "key" ? "Key refused." : e.message === "offline" ? "Can't reach it." : "Error: " + e.message; });
         return;
@@ -1400,6 +1412,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     q("#cl-url").addEventListener("change", () => loadList("cloud"));
     q("#lc-key").addEventListener("change", () => loadList("local"));
     q("#lc-url").addEventListener("change", () => loadList("local"));
+    q("#lc-quick").addEventListener("click", (e) => { const b = e.target.closest("[data-url]"); if (b) { q("#lc-url").value = b.dataset.url; loadList("local"); } });
     sync();
     loadList(draft.provider);
     const close = () => ov.remove();

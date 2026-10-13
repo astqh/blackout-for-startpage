@@ -3,6 +3,30 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.2.0 · 12 October 2026
+
+Tested on Startpage as it was on 12 October 2026: the home widgets on the live site in Firefox with Violentmonkey and
+Stylus, and moving, resizing and Instant Answer's settings in the demo in Chromium. Instant Answer not yet tested with
+a real AI service.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.0 |
+| Tweaks | 1.1.0 |
+| Home widgets | 1.2.0 |
+| Instant Answer | 2.1.0 |
+| F1 card | 1.3.2 |
+| Quick answers | 1.1.0 |
+
+- Home widgets move like an iOS home screen. Hold any widget for a moment, or open Customize, and drag it anywhere.
+  The others slide out of the way. There is no handle to find any more, and dragging stays smooth.
+- Resizing a widget now scales everything inside it, text, numbers, pictures and spacing, to fill the new size. Small
+  widgets drop their title so the rest can be bigger.
+- Instant Answer's settings have the usual addresses for llama.cpp, LM Studio and Ollama, and say when you need to
+  pick a model because your model app doesn't say which one is loaded.
+
+Page parts the scripts rely on are the same as in 1.0.1.
+
 ## 1.1.0 · 11 October 2026
 
 Tested on Startpage as it was on 11 October 2026. The home widgets and the F1 widget on the live site in Firefox with
