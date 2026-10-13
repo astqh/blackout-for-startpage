@@ -233,6 +233,21 @@ stops and the rest of the page keeps working. The [changelog](CHANGELOG.md) list
 each release was tested on. Please [open an issue](https://github.com/astqh/blackout-for-startpage/issues) with
 your release, your browser and the search you used.
 
+## Going back to an older version
+
+Every release from 1.0.1 on has a zip on the [Releases](https://github.com/astqh/blackout-for-startpage/releases)
+page. The add-ons update themselves to the newest version, so turn that off for the part you go back on.
+
+1. Download the older release's zip, unzip it and double-click `tools\Install add-ons.cmd`.
+2. Click **Install** next to the part and confirm replacing the newer version. Your settings are kept.
+3. Turn off its updates:
+   - **Script:** Violentmonkey dashboard → the script's settings → untick **Allow update**.
+   - **Theme:** Stylus **Manage** → the style's settings → turn off update checks.
+
+Turn updates back on to return to the newest version. Before going back past Instant Answer 2.3.0 (release 1.3.0),
+turn its **Key lock** off, because older versions can't read locked keys. A single file from any version is also in
+the repository's history on GitHub.
+
 ## Licence and credits
 
 MIT. See [LICENSE](LICENSE). Data sources and the icon notice are in [THIRD-PARTY.md](THIRD-PARTY.md). Changes
