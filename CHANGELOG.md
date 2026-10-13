@@ -3,6 +3,27 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.4.0 · 12 October 2026
+
+Tested on Startpage as it was on 12 October 2026, in Firefox with Violentmonkey against a stand-in AI: a follow-up
+rewritten into its own search, a real Startpage search, a page read with Readability, the sources listed under the
+reply, and all of it back after a reload. Instant Answer not yet tested with a real AI service.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.1 |
+| Tweaks | 1.1.0 |
+| Home widgets | 1.2.0 |
+| Instant Answer | 2.5.0 |
+| F1 card | 1.3.2 |
+| Quick answers | 1.1.0 |
+
+- Follow-ups under an answer can search Startpage and read pages, like conversations, and list their sources.
+- A research setting: Speed, Balanced or Deep. Balanced and Deep first turn your question into a search of its own.
+- Pages are read with Mozilla Readability, and on long pages only the parts that match your question are sent.
+- Settings for how long saved answers, follow-ups and kept conversations stay, and one button to delete them all.
+- Services that need no key can be used without one.
+
 ## 1.3.0 · 12 October 2026
 
 Tested on Startpage as it was on 12 October 2026: the theme's dictionary box on the live site in Firefox with Stylus,

@@ -151,11 +151,21 @@ model for everything.
 for harder questions. If a service doesn't accept a setting, Instant Answer leaves it out for that model and asks
 again.
 
-**Conversations.** The expand button next to an answer opens a side panel with the answer and your follow-ups.
-There the AI can search Startpage and read result pages when it needs more, at most three searches and three pages
-per reply, and it cites what it found. It follows a short instruction file you can replace in settings. A
-conversation is deleted when you close it, unless you keep that one or turn on **Keep conversations** in settings.
-You can also download one as a Markdown file. Follow-ups under an answer are deleted after 30 minutes without use.
+**Follow-ups and conversations.** Ask a follow-up under an answer, or click the expand button for a side panel.
+When the results on the page don't cover your question, the AI searches Startpage and reads pages, shows what it
+looked up, cites it and lists its sources under the reply. Pick how far it goes in settings:
+
+- **Speed** answers from what it has and searches only when it must.
+- **Balanced** (the default) first turns your question into a search of its own, so "compare it to Brave" searches
+  for the comparison, then may search and read up to three times each.
+- **Deep** searches and reads more and checks several sources. It's slower.
+
+Pages are read with Mozilla's Readability, the reader view code, so only the article text is used. On long pages only
+the parts that match your question are sent. Conversations follow a short instruction file you can replace in
+settings, and can be kept or downloaded as a Markdown file.
+
+**Keeping data.** In settings you choose how long saved answers, follow-ups and kept conversations stay, and one
+button deletes all of it. It all stays in your browser.
 
 **Your keys.** They are kept in Violentmonkey's own storage, which websites can't read, and Instant Answer runs
 sealed off from Startpage's own scripts. The key goes to your AI service from Violentmonkey, never through the page.

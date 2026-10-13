@@ -1,7 +1,12 @@
 # Third-party data, services and notices
 
-The scripts contain no code or images from anyone else. They contact these services from your browser, only for
-the features listed.
+The scripts contain no images from anyone else. Instant Answer uses one library, loaded by your userscript add-on
+when it installs or updates the script (with a checksum, so a changed file is refused):
+
+- [Mozilla Readability](https://github.com/mozilla/readability) 0.6.0, the code behind Firefox's reader view, from jsDelivr. Licensed under
+  the Apache License 2.0. Copyright (c) 2010 Arc90 Inc and Mozilla contributors.
+
+The scripts contact these services from your browser, only for the features listed.
 
 | Service | Used by | Data licence and terms |
 |---|---|---|
@@ -9,7 +14,7 @@ the features listed.
 | [OpenF1](https://openf1.org) | F1 card | Data: CC BY-NC-SA 4.0. Free for non-commercial use. Independent and not connected to Formula 1. |
 | [Open-Meteo](https://open-meteo.com) | Home widgets (weather) | Data: CC BY 4.0 ("Weather data by Open-Meteo.com", shown in the widget). Free for non-commercial use. |
 | [Frankfurter](https://frankfurter.dev) | Home widgets, Quick answers (currency) | Open-source service publishing European Central Bank reference rates. |
-| Your AI provider | Instant Answer | Whichever you choose and set up. OpenCode Go, or an app on your own computer. Its own terms apply. |
+| Your AI provider | Instant Answer | Whichever you choose and set up: an OpenAI-compatible service or an app on your own computer. Its own terms apply. |
 
 The F1 card names its data source under its results. This project is free and non-commercial. Anyone reusing it
 commercially must check these services' terms first.
