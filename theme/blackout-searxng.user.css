@@ -1,0 +1,166 @@
+/* ==UserStyle==
+@name         Blackout for SearXNG
+@namespace    blackout-for-startpage/searxng
+@version      1.0.0
+@license      MIT
+@homepageURL  https://github.com/astqh/blackout-for-startpage
+@supportURL   https://github.com/astqh/blackout-for-startpage/issues
+@updateURL    https://astqh.github.io/blackout-for-startpage/theme/blackout-searxng.user.css
+@description  The Blackout true black theme for any SearXNG instance. Pick an accent colour and where the results sit on wide screens. Only pages that say they are SearXNG are changed, and it uses fonts already on your computer.
+@preprocessor default
+@var select accent "Accent colour" {
+  "Soft blue*": "#a3c4ff",
+  "Lilac": "#c9b6ff",
+  "Amber gold": "#f0c674"
+}
+@var select layout "Results position (wide windows)" {
+  "Left, SearXNG's own": "0",
+  "Centre left*": "0.6",
+  "Centred": "1"
+}
+==/UserStyle== */
+
+/* SearXNG runs on any address, so this style is offered to every page, but every rule sits inside the selector below:
+   it only matches a page whose <head> has SearXNG's own <meta name="generator" content="searxng/…">. Other pages are
+   left alone. In Stylus you can still narrow it to your instance's address under the style's "Applies to". */
+@-moz-document url-prefix("http") {
+html:has(> head > meta[name="generator"][content^="searx" i]) {
+  /* ---------- Blackout: the same --sp-* tokens as the Startpage theme, so every script's boxes match ---------- */
+  --sp-bg: #000000; --sp-surface: #0b0b0d; --sp-surface-2: #141417; --sp-field: #0b0b0d;
+  --sp-line: #1a1a1e; --sp-line-strong: #2a2a30;
+  --sp-ink: #e6e6e9; --sp-ink-2: #a5a5ad; --sp-muted: #6e6e77;
+  --sp-link: var(--accent, #a3c4ff); --sp-accent: var(--accent, #a3c4ff);
+  --sp-visited: color-mix(in oklab, var(--accent, #a3c4ff) 62%, #6b6b78);
+  --sp-select: color-mix(in srgb, var(--accent, #a3c4ff) 28%, transparent);
+  --sp-url: #7c8a84; --sp-favicon: #e6e6e9;
+  --sp-font: "Segoe UI", system-ui, sans-serif; --sp-font-title: "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+  --sp-mono: Consolas, ui-monospace, monospace;
+  --sp-radius: 12px;
+  color-scheme: dark;
+
+  /* ---------- SearXNG's own colour variables (light, dark, black and auto all become Blackout) ---------- */
+  --color-base-font: var(--sp-ink-2) !important; --color-base-font-rgb: 165, 165, 173 !important;
+  --color-base-background: var(--sp-bg) !important; --color-base-background-mobile: var(--sp-bg) !important;
+  --color-url-font: var(--sp-link) !important; --color-url-visited-font: var(--sp-visited) !important;
+  --color-header-background: var(--sp-bg) !important; --color-header-border: var(--sp-line) !important;
+  --color-footer-background: var(--sp-bg) !important; --color-footer-border: var(--sp-line) !important;
+  --color-sidebar-border: var(--sp-line) !important; --color-sidebar-font: var(--sp-ink) !important; --color-sidebar-background: var(--sp-bg) !important;
+  --color-backtotop-font: var(--sp-ink-2) !important; --color-backtotop-border: var(--sp-line-strong) !important; --color-backtotop-background: var(--sp-surface) !important;
+  --color-btn-background: var(--sp-accent) !important; --color-btn-font: var(--sp-bg) !important;
+  --color-show-btn-background: var(--sp-surface-2) !important; --color-show-btn-font: var(--sp-ink) !important;
+  --color-search-border: var(--sp-line-strong) !important; --color-search-shadow: none !important;
+  --color-search-background: var(--sp-field) !important; --color-search-font: var(--sp-ink) !important;
+  --color-search-background-hover: var(--sp-accent) !important;
+  --color-categories-item-selected-font: var(--sp-ink) !important; --color-categories-item-border-selected: var(--sp-accent) !important;
+  --color-autocomplete-font: var(--sp-ink) !important; --color-autocomplete-border: var(--sp-line-strong) !important;
+  --color-autocomplete-shadow: 0 12px 32px rgba(0, 0, 0, .5) !important; --color-autocomplete-background: var(--sp-surface) !important;
+  --color-autocomplete-background-hover: var(--sp-surface-2) !important;
+  --color-answer-font: var(--sp-ink-2) !important; --color-answer-background: var(--sp-surface) !important;
+  --color-result-keyvalue-col-table: var(--sp-surface) !important; --color-result-keyvalue-odd: var(--sp-surface) !important; --color-result-keyvalue-even: var(--sp-bg) !important;
+  --color-result-background: var(--sp-bg) !important; --color-result-border: var(--sp-line) !important;
+  --color-result-url-font: var(--sp-url) !important;
+  --color-result-vim-selected: var(--sp-surface) !important; --color-result-vim-arrow: var(--sp-accent) !important;
+  --color-result-description-highlight-font: var(--sp-ink) !important;
+  --color-result-link-font: var(--sp-link) !important; --color-result-link-font-highlight: var(--sp-link) !important;
+  --color-result-link-visited-font: var(--sp-visited) !important;
+  --color-result-publishdate-font: var(--sp-muted) !important; --color-result-engines-font: var(--sp-muted) !important;
+  --color-result-search-url-border: var(--sp-line-strong) !important; --color-result-search-url-font: var(--sp-ink) !important;
+  --color-result-detail-background: var(--sp-surface) !important; --color-result-detail-link: var(--sp-link) !important;
+  --color-result-image-span-font: var(--sp-ink-2) !important; --color-result-image-span-font-selected: var(--sp-bg) !important;
+  --color-result-image-background: var(--sp-bg) !important;
+  --color-settings-tr-hover: var(--sp-surface) !important; --color-settings-engine-description-font: var(--sp-muted) !important;
+  --color-settings-table-group-background: var(--sp-surface) !important;
+  --color-toolkit-badge-font: var(--sp-ink) !important; --color-toolkit-badge-background: var(--sp-surface-2) !important;
+  --color-toolkit-kbd-font: var(--sp-bg) !important; --color-toolkit-kbd-background: var(--sp-ink) !important;
+  --color-toolkit-dialog-border: var(--sp-line-strong) !important; --color-toolkit-dialog-background: var(--sp-surface) !important;
+  --color-toolkit-tabs-label-border: var(--sp-bg) !important; --color-toolkit-tabs-section-border: var(--sp-line-strong) !important;
+  --color-toolkit-select-background: var(--sp-surface) !important; --color-toolkit-select-border: var(--sp-line-strong) !important;
+  --color-toolkit-select-background-hover: var(--sp-surface-2) !important; --color-toolkit-input-text-font: var(--sp-ink) !important;
+  --color-toolkit-checkbox-onoff-off-background: var(--sp-surface-2) !important; --color-toolkit-checkbox-onoff-on-background: var(--sp-surface-2) !important;
+  --color-toolkit-checkbox-onoff-on-mark-background: var(--sp-accent) !important; --color-toolkit-checkbox-onoff-on-mark-color: var(--sp-bg) !important;
+  --color-toolkit-checkbox-onoff-off-mark-background: var(--sp-muted) !important; --color-toolkit-checkbox-onoff-off-mark-color: var(--sp-bg) !important;
+  --color-toolkit-checkbox-label-background: var(--sp-surface) !important; --color-toolkit-checkbox-label-border: var(--sp-line) !important;
+  --color-toolkit-checkbox-input-border: var(--sp-accent) !important;
+  --color-toolkit-engine-tooltip-border: var(--sp-line-strong) !important; --color-toolkit-engine-tooltip-background: var(--sp-surface) !important;
+  --color-doc-code: var(--sp-ink) !important; --color-doc-code-background: var(--sp-surface-2) !important;
+  --color-favicon-background-color: var(--sp-surface-2) !important; --color-favicon-border-color: var(--sp-line-strong) !important;
+
+  /* ---------- results position on wide windows ----------
+     SearXNG starts the search box and the results 10rem from the left; the results and sidebar together are 75rem
+     wide. Here they move right together by a share (--layout: 0, 0.6 or 1) of the free space, so 1 centres them.
+     Narrower windows, right-to-left pages and SearXNG's own "Center alignment" setting keep SearXNG's layout. */
+  @media (min-width: 80em) {
+    &:not(.center-alignment-yes):not([dir="rtl"]) {
+      & #main_results { --sp-shift: max(0px, calc((50vw - 42.5rem) * var(--layout, 0.6))); }
+      & #main_results #results { margin-left: calc(10rem + var(--sp-shift)) !important; }
+      & #main_results #search_header { padding-left: calc(7rem + var(--sp-shift)) !important; }
+      & #main_results .search_filters { margin-left: calc(10.6rem + var(--sp-shift)) !important; }
+    }
+  }
+
+  /* ---------- page ground and text ---------- */
+  & body { background: var(--sp-bg) !important; color: var(--sp-ink-2) !important; }
+  & body :not(svg):not(svg *):not(code):not(pre):not(kbd) { font-family: var(--sp-font) !important; }
+  & ::selection { background: var(--sp-select) !important; color: var(--sp-ink) !important; }
+  & a { color: var(--sp-link); }
+
+  /* ---------- search box ---------- */
+  & .search_box { background: var(--sp-field) !important; border: 1px solid var(--sp-line-strong) !important; border-radius: var(--sp-radius) !important; box-shadow: none !important; }
+  & .search_box:focus-within { border-color: var(--sp-accent) !important; box-shadow: 0 0 0 1px var(--sp-accent) !important; }
+  & #q { caret-color: var(--sp-accent) !important; background: transparent !important; color: var(--sp-ink) !important; }
+  & #q::placeholder { color: var(--sp-muted) !important; }
+  & #send_search, & #clear_search { background: transparent !important; color: var(--sp-muted) !important; }
+  & #send_search:hover, & #clear_search:hover { color: var(--sp-accent) !important; }
+  & .autocomplete { border-radius: var(--sp-radius) !important; overflow: hidden; }
+  & #search_logo svg [fill]:not([fill="none"]) { fill: var(--sp-ink) !important; }
+  & #search_logo svg [stroke]:not([stroke="none"]) { stroke: var(--sp-ink) !important; }
+
+  /* ---------- category tabs and filters ---------- */
+  & .category_checkbox label, & button.category_button { color: var(--sp-muted) !important; background: transparent !important; }
+  & .category_checkbox label:hover, & button.category_button:hover { color: var(--sp-ink) !important; background: transparent !important; }
+  & button.category_button { border-bottom: 2px solid transparent !important; }
+  & button.category_button.selected, & .category_checkbox input:checked + label { color: var(--sp-ink) !important; border-bottom-color: var(--sp-accent) !important; }
+  & .search_filters select { color: var(--sp-ink-2) !important; background-color: transparent !important; }
+  & .search_filters select option { background: var(--sp-surface) !important; color: var(--sp-ink) !important; }
+
+  /* ---------- results ---------- */
+  & #urls .result { border-left-color: transparent !important; background: transparent !important; }
+  & #urls .result[data-vim-selected] { background: var(--sp-surface) !important; border-left-color: var(--sp-accent) !important; }
+  & #urls .result h3 a { color: var(--sp-link) !important; font-family: var(--sp-font-title) !important; font-weight: 600 !important; font-size: 19px !important; letter-spacing: -.005em; }
+  & #urls .result h3 a:visited { color: var(--sp-visited) !important; }
+  & #urls .result h3 a:hover { text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  & #urls .result .url_wrapper, & #urls .result .url_wrapper * { color: var(--sp-url) !important; font-family: var(--sp-mono) !important; font-size: 12.5px !important; }
+  & #urls .result .content { color: var(--sp-ink-2) !important; }
+  & #urls .result .content .highlight { color: var(--sp-ink) !important; }
+  & #urls .result .engines, & #urls .result .engines span { color: var(--sp-muted) !important; }
+  & #urls .result .engines a, & #urls .result .altlink a { color: var(--sp-muted) !important; }
+  & #urls .result .engines a:hover { color: var(--sp-accent) !important; }
+  & #urls .result .favicon img { background: var(--sp-favicon) !important; border-color: transparent !important; border-radius: 4px; }
+  & #urls .result .thumbnail { border-radius: 8px; }
+
+  /* ---------- answers, corrections, sidebar boxes ---------- */
+  & #answers, & #corrections, & #infoboxes .infobox, & #sidebar details, & .dialog-error, & .dialog-modal, & .dialog-warning {
+    background: var(--sp-surface) !important; color: var(--sp-ink-2) !important; border: 1px solid var(--sp-line) !important; border-radius: 16px !important; box-shadow: none !important;
+  }
+  & #answers .title, & #sidebar .title, & #infoboxes h2 { color: var(--sp-ink) !important; }
+  & #corrections input[type="submit"], & #suggestions input[type="submit"] { color: var(--sp-link) !important; background: transparent !important; }
+  & #search_url input, & #search_url pre, & #apis button, & #apis input { background: var(--sp-surface-2) !important; color: var(--sp-ink) !important; border-color: var(--sp-line-strong) !important; }
+
+  /* ---------- page numbers and back to top ---------- */
+  & #pagination button, & #pagination input[type="submit"], & #pagination input[type="button"] {
+    background: transparent !important; color: var(--sp-ink-2) !important; border: 1px solid var(--sp-line-strong) !important; border-radius: 999px !important; appearance: none !important;
+  }
+  & #pagination button:hover, & #pagination input[type="submit"]:hover { border-color: var(--sp-accent) !important; color: var(--sp-ink) !important; }
+  & #pagination .page_number_current { border-color: var(--sp-accent) !important; color: var(--sp-ink) !important; }
+
+  /* ---------- this project's boxes above the results (Instant Answer, F1, quick answers) line up with the results ---------- */
+  & #urls > [id^="sp-"] { margin-left: 1.2rem !important; margin-right: 1rem !important; }
+
+  /* ---------- links on top, footer, preferences ---------- */
+  & #links_on_top a, & #links_on_top a span { color: var(--sp-muted) !important; }
+  & #links_on_top a:hover, & #links_on_top a:hover span { color: var(--sp-ink) !important; }
+  & footer, & footer p { color: var(--sp-muted) !important; background: var(--sp-bg) !important; }
+  & footer a { color: var(--sp-ink-2) !important; }
+  & #main_preferences input[type="text"], & #main_preferences select, & #main_preferences textarea { background: var(--sp-surface) !important; color: var(--sp-ink) !important; border-color: var(--sp-line-strong) !important; }
+}
+}
