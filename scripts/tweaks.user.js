@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         Tweaks for Startpage
 // @namespace    blackout-for-startpage/tweaks
-// @version      1.1.0
+// @version      1.2.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
 // @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/tweaks.user.js
 // @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/tweaks.user.js
-// @description  Small fixes for Startpage. Results open in the same tab and the ad blocker banner and Private Search badge are hidden. Every result gets a ⋮ menu to open it in Anonymous View, summarize it, copy the link, or pin or hide the site. Adds keyboard keys. Each part can be turned off.
+// @description  Small fixes for Startpage. Results open in the same tab and the ad blocker banner and Private Search badge are hidden. Every result gets a ⋮ menu to open it in Anonymous View, summarize it, copy the link, or pin or hide the site. Adds keyboard keys. Each part can be turned off. Also works on SearXNG.
 // @match        https://*.startpage.com/*
+// @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_setClipboard
@@ -23,11 +24,22 @@
  * "Verifying your request" check, fall back to Startpage's default (new tab). This fixes it everywhere.
  * Nothing is sent anywhere: pinned and hidden sites stay in this browser. "Summarize" is done by the Instant Answer
  * script, only when you ask. Switch each part in the Violentmonkey menu on a Startpage tab.
+ * SearXNG: the same ⋮ menu, pinned and hidden sites, same tab and keys on any SearXNG instance. Other pages are left
+ * alone: the script stops at once unless the page carries SearXNG's own <meta name="generator" content="searxng/…">.
  */
 
-(function () {
+(function tweaks() {
   "use strict";
   if (window.top !== window.self) return;
+  // Startpage, or a SearXNG instance at any address (known by its generator tag, so wait until <head> is read)
+  const SP = /(^|\.)startpage\.com$/i.test(location.hostname);
+  if (!SP && document.readyState === "loading") return void document.addEventListener("DOMContentLoaded", tweaks, { once: true });
+  if (!SP && !document.querySelector('meta[name="generator"][content^="searx" i]')) return;
+  // SearXNG builds each result as #urls > article.result: a.url_header (icon, address), h3 > a, p.content, then the
+  // engines and the "cached" link. Picture results are left out.
+  const LIST = SP ? ".w-gl" : "#urls";
+  const RESULT = SP ? ".w-gl > .result" : "#urls > .result:not(.result-images)";
+  const own = (a) => (SP ? /(^|\.)startpage\.com$/i.test(a.hostname) : a.hostname === location.hostname);
 
   const DEFAULTS = { sameTab: true, noAdblockBanner: true, noPrivateBadge: true, tools: true, keys: true, anonInline: false };
   const S = Object.assign({}, DEFAULTS, GM_getValue("settings", {}));
@@ -45,20 +57,20 @@
     const a = e.target.closest && e.target.closest("a[href]");
     if (!a || !/^https?:/i.test(a.href)) return;
     // a link to another site, or "Visit in Anonymous View" (Startpage's proxy, a direct link too)
-    const elsewhere = !/(^|\.)startpage\.com$/i.test(a.hostname) || /^\/av\/proxy/.test(a.pathname);
+    const elsewhere = !own(a) || (SP && /^\/av\/proxy/.test(a.pathname));
     if (a.target === "_blank" || elsewhere) a.target = "_self";
-    if (elsewhere) e.stopImmediatePropagation();
+    if (elsewhere && SP) e.stopImmediatePropagation();
   }, true);
 
   // 2) Ad-blocker banner ("Block creepy ads, not private search", "Supporting Startpage is easy").
   //    Startpage hides it for 30 days once dismissed, but browsers that clear site data forget that; mark it dismissed
   //    on every visit before Startpage decides, and hide it by its wording if it shows anyway.
   const BANNER = /Allow Startpage ads|Supporting Startpage is easy|Block creepy ads|Free thanks to private ads|Ads keep your private search results free|exempting us from your ad blocker/i;
-  if (S.noAdblockBanner) {
+  if (SP && S.noAdblockBanner) {
     for (const store of [window.localStorage, window.sessionStorage]) { try { store.setItem("sp_support_banner_dismissed", String(Date.now())); } catch (e) { /* storage blocked */ } }
   }
   function hideBanner(root) {
-    if (!S.noAdblockBanner) return;
+    if (!SP || !S.noAdblockBanner) return;
     root.querySelectorAll("p, button, h2, h3, span").forEach((el) => {
       if (el.childElementCount > 2 || !BANNER.test(el.textContent) || el.closest(".w-gl, .result, #sp-instant-answer")) return;   // never a search result
       // climb to the banner box: the largest ancestor that is still only the banner (short text)
@@ -74,16 +86,18 @@
   // before Startpage starts makes Startpage rebuild the whole page (and then clicks misbehave).
   const css = document.createElement("style");
   css.textContent = [
-    S.noPrivateBadge ? ".private-search-dropdown-wrapper, .private-search-dropdown { display: none !important; }" : "",
-    S.tools && !S.anonInline ? ".w-gl > .result .anonymous-view-link { display: none !important; }" : "",
+    SP && S.noPrivateBadge ? ".private-search-dropdown-wrapper, .private-search-dropdown { display: none !important; }" : "",
+    SP && S.tools && !S.anonInline ? ".w-gl > .result .anonymous-view-link { display: none !important; }" : "",
     // pinned results move up by layout order only, so Startpage's own page code never sees its list change
-    ".w-gl[data-spt-pins] { display: flex !important; flex-direction: column; }",
-    ".w-gl[data-spt-pins] > :not(.result) { order: -2; }",
-    ".w-gl > .result[data-spt-pin] { order: -1; }",
-    ".w-gl > .result[data-spt-hide]:not([data-spt-show]) { display: none !important; }",
-    ".w-gl > .result[data-spt-hide][data-spt-show] { opacity: .5; }",
-    ".w-gl > .result[data-spt-sel] { outline: 2px solid var(--sp-accent, #6677fb); outline-offset: 6px; border-radius: 6px; }",
-    ".w-gl > .result { scroll-margin: 120px 0 60px; }",
+    LIST + "[data-spt-pins] { display: flex !important; flex-direction: column; }",
+    // the boxes above the results stay on top (on SearXNG only this project's; its own groups keep their place)
+    LIST + "[data-spt-pins] > " + (SP ? ":not(.result)" : '[id^="sp-"]') + " { order: -2; }",
+    LIST + "[data-spt-pins] > #spt-note { order: 1; }",
+    RESULT + "[data-spt-pin] { order: -1; }",
+    RESULT + "[data-spt-hide]:not([data-spt-show]) { display: none !important; }",
+    RESULT + "[data-spt-hide][data-spt-show] { opacity: .5; }",
+    RESULT + "[data-spt-sel] { outline: 2px solid var(--sp-accent, #6677fb); outline-offset: 6px; border-radius: 6px; }",
+    RESULT + " { scroll-margin: 120px 0 60px; }",
   ].join("\n");
   const addCss = () => { if (css.isConnected) return true; const at = document.documentElement; if (at) at.appendChild(css); return !!at; };
   if (!addCss()) new MutationObserver((m, obs) => { if (addCss()) obs.disconnect(); }).observe(document, { childList: true });
@@ -91,11 +105,11 @@
   // ---------------------------------------------------------------- result tools: ⋮ menu, site rules, keys
   // Startpage builds each result as .w-gl > .result: .upper (icon, site name, address), a.result-title, the
   // description, then "Visit in Anonymous View". The last .result in the list is a hidden trap link for bots
-  // (class "h", it leads to startpage.com/clev); it is never touched or opened.
+  // (class "h", it leads to startpage.com/clev); it is never touched or opened. SearXNG's are described at the top.
   const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
   function linkOf(r) {
-    const a = r.querySelector("a.result-title") || r.querySelector("a.result-link");
-    if (!a || !/^https?:/i.test(a.href) || /(^|\.)startpage\.com$/i.test(a.hostname)) return null;
+    const a = SP ? r.querySelector("a.result-title") || r.querySelector("a.result-link") : r.querySelector("h3 a[href]") || r.querySelector("a.url_header");
+    if (!a || !/^https?:/i.test(a.href) || own(a)) return null;
     return a;
   }
   // "en.wikipedia.org" -> "wikipedia.org", "bbc.co.uk" stays, "news.gc.ca" -> "news.gc.ca"
@@ -112,9 +126,12 @@
     const a = linkOf(r);
     if (!a) return null;
     if (!r.hasAttribute("data-spt-id")) r.setAttribute("data-spt-id", String(nextId++));
-    const av = r.querySelector(".anonymous-view-link a[href]"), t = r.querySelector(".wgl-title");
+    // "Anonymous View" is Startpage's; on SearXNG the instance's proxy link when it has one, else the archived copy
+    const av = SP ? r.querySelector(".anonymous-view-link a[href]") : r.querySelector("a.proxyfied_link[href]") || r.querySelector("a.cache_link[href]");
+    const t = r.querySelector(SP ? ".wgl-title" : "h3");
     return { el: r, id: r.getAttribute("data-spt-id"), url: a.href, host: a.hostname, site: siteOf(a.hostname),
-      title: (t || a).textContent.replace(/\s+/g, " ").trim(), av: av ? av.href : "" };
+      title: (t || a).textContent.replace(/\s+/g, " ").trim(), av: av ? av.href : "",
+      avLabel: SP ? "Open in Anonymous View" : av && av.classList.contains("proxyfied_link") ? "Open through the proxy" : "Open the archived copy" };
   }
   const flag = (el, name, on) => { if (on && !el.hasAttribute(name)) el.setAttribute(name, ""); else if (!on && el.hasAttribute(name)) el.removeAttribute(name); };
 
@@ -174,8 +191,15 @@ svg { width: 18px; height: 18px; }
     }
     d.tag.hidden = !pinned;
     if (!r.contains(d.host)) {
-      const up = r.querySelector(".upper"), after = up && up.querySelector(".wgl-title-link-container");
-      if (after) after.after(d.host); else if (up) up.append(d.host); else r.prepend(d.host);
+      if (SP) {
+        const up = r.querySelector(".upper"), after = up && up.querySelector(".wgl-title-link-container");
+        if (after) after.after(d.host); else if (up) up.append(d.host); else r.prepend(d.host);
+      } else {
+        // on the address line, at its right end (the address shrinks to make room)
+        const inner = r.querySelector(".result_inner") || r, uh = inner.querySelector("a.url_header");
+        d.host.style.float = "right";
+        if (uh) uh.before(d.host); else inner.prepend(d.host);
+      }
     }
   }
 
@@ -191,6 +215,7 @@ button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; borde
     if (!count) { if (note) note.host.remove(); return; }
     if (!note) {
       note = shadowHost("div", NOTE_CSS, '<div class="n"><span class="t"></span><button type="button" data-a="toggle"></button><button type="button" data-a="manage">Manage</button></div>');
+      note.host.id = "spt-note";
       note.root.addEventListener("click", (e) => {
         const b = e.target.closest("button"); if (!b) return;
         if (b.dataset.a === "manage") return openSites();
@@ -199,18 +224,19 @@ button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; borde
     }
     note.root.querySelector(".t").textContent = count + (count === 1 ? " result" : " results") + " from " + sites.join(", ") + (showHidden ? " shown faded." : " hidden.");
     note.root.querySelector('[data-a="toggle"]').textContent = showHidden ? "Hide again" : "Show";
-    if (gl.nextElementSibling !== note.host) gl.after(note.host);
+    // SearXNG lays its results page out as a grid, so the line goes at the end of the list instead of after it
+    if (SP ? gl.nextElementSibling !== note.host : gl.lastElementChild !== note.host) { if (SP) gl.after(note.host); else gl.append(note.host); }
   }
 
   // ---- apply the rules to the results on the page (cheap; runs again whenever the page changes)
   let live = false;                               // buttons are added only once Startpage has finished building the page
   function apply() {
-    const gl = document.querySelector(".w-gl");
+    const gl = document.querySelector(LIST);
     if (!gl) return;
     let pins = 0, hidden = 0;
     const sites = [];
     for (const r of gl.children) {
-      if (!r.classList.contains("result") || r.classList.contains("h")) continue;
+      if (!r.matches(RESULT) || r.classList.contains("h")) continue;
       const it = info(r);
       if (!it) continue;
       const pin = !!ruleFor(SITES.pinned, it.host), hide = !pin && !!ruleFor(SITES.hidden, it.host);
@@ -299,7 +325,7 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
     const pinned = ruleFor(SITES.pinned, it.host), hidden = ruleFor(SITES.hidden, it.host);
     u.menu.innerHTML = '<div class="head">' + esc(it.host.replace(/^www\./, "")) + "</div>" +
       (aiReady ? item("sum", "spark", "Summarize this page", "s") : "") +
-      (it.av ? item("anon", "anon", "Open in Anonymous View", "a") : "") +
+      (it.av ? item("anon", "anon", it.avLabel, "a") : "") +
       item("copy", "copy", "Copy link", "c") +
       item("pin", "pin", pinned ? "Unpin " + pinned : "Pin " + it.site + " to the top", "p") +
       item("hide", hidden ? "show" : "hide", hidden ? "Stop hiding " + hidden : "Hide " + it.site, "h") +
@@ -361,7 +387,8 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
     const k = (...keys) => keys.map((x) => "<kbd>" + esc(x) + "</kbd>").join("");
     panel("Keyboard keys",
       '<p class="sub">Keys act on the result you picked with <b>j</b> / <b>k</b> (it gets an outline), or else on the one under your mouse pointer. They do nothing while you type in a box.</p><table>' +
-      [[k("j", "k"), "Next / previous result"], [k("Enter", "o"), "Open it"], [k("a"), "Open it in Anonymous View (Startpage visits the site for you)"],
+      [[k("j", "k"), "Next / previous result"], [k("Enter", "o"), "Open it"],
+        [k("a"), SP ? "Open it in Anonymous View (Startpage visits the site for you)" : "Open it through your instance's proxy, or its archived copy"],
         [k("s"), "Summarize it (needs the Instant Answer script)"], [k("c"), "Copy its link"], [k("p"), "Pin its site to the top of your results"],
         [k("h"), "Hide its site from your results"], [k("m"), "Open its ⋮ menu"], [k("/"), "Jump to the search box"], [k("Esc"), "Close, or clear the outline"], [k("?"), "This list"]]
         .map((row) => "<tr><td>" + row[0] + "</td><td>" + row[1] + "</td></tr>").join("") + "</table>");
@@ -429,7 +456,7 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
     const it = r && info(r);
     if (!it) return;
     if (name === "open") return go(it.url);
-    if (name === "anon") return it.av ? go(it.av) : toast("This result has no Anonymous View link.");
+    if (name === "anon") return it.av ? go(it.av) : toast(SP ? "This result has no Anonymous View link." : "This result has no archived copy.");
     if (name === "copy") { copy(it.url); return toast("Link copied"); }
     if (name === "sum") return summarize(it);
     if (name === "menu") { if (!live) return; dots(r, !!ruleFor(SITES.pinned, it.host)); return openMenu(r, dotsOf.get(r).btn); }
@@ -448,11 +475,11 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
   // ---- keyboard keys
   let hovered = null, selected = null;
   document.addEventListener("mouseover", (e) => {
-    const r = e.target.closest && e.target.closest(".w-gl > .result");
+    const r = e.target.closest && e.target.closest(RESULT);
     hovered = r && !r.classList.contains("h") ? r : null;
   }, { passive: true });
   const usable = (r) => r && r.isConnected && !r.classList.contains("h") && r.offsetHeight > 20 && linkOf(r);
-  const visible = () => Array.from(document.querySelectorAll(".w-gl > .result")).filter(usable)
+  const visible = () => Array.from(document.querySelectorAll(RESULT)).filter(usable)
     .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
   function select(r) {
     if (selected && selected !== r) selected.removeAttribute("data-spt-sel");
@@ -469,11 +496,13 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
     select(list[h >= 0 ? h : Math.max(0, first)]);
   }
   const KEYS = { Enter: "open", o: "open", a: "anon", s: "sum", c: "copy", p: "pin", h: "hide", m: "menu", ".": "menu", ":": "menu" };
-  document.addEventListener("keydown", (e) => {
-    if (!S.keys || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey || e.isComposing || !document.querySelector(".w-gl")) return;
+  // SearXNG has hotkeys of its own on some of the same letters (c, h, o, p, and j / k in its vim mode); on SearXNG
+  // these keys are taken first and SearXNG doesn't see the ones used here.
+  (SP ? document : window).addEventListener("keydown", (e) => {
+    if (!S.keys || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey || e.isComposing || !document.querySelector(LIST)) return;
     const t = e.target, page = t === document.body || t === document.documentElement;
     // only when nothing is being typed: the page itself, or something inside the results list
-    if (!page && !(t.closest && t.closest(".w-gl") && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !t.isContentEditable)) return;
+    if (!page && !(t.closest && t.closest(LIST) && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !t.isContentEditable)) return;
     const k = e.key;
     if (k === "/") {
       const box = document.querySelector("#q") || document.querySelector("input.search-form-input");
@@ -491,7 +520,8 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
       else act(name, r);
     }
     e.preventDefault();
-  });
+    if (!SP) e.stopImmediatePropagation();
+  }, !SP);
 
   // ---------------------------------------------------------------- start
   const onReady = () => {
@@ -513,10 +543,11 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
     sameTab: "Open results in the same tab",
     noAdblockBanner: "Hide the ad-blocker banner",
     noPrivateBadge: "Hide the Private Search badge",
-    tools: "⋮ menu on results (summary, Anonymous View, pin, hide)",
+    tools: SP ? "⋮ menu on results (summary, Anonymous View, pin, hide)" : "⋮ menu on results (summary, archived copy, pin, hide)",
     keys: "Keyboard keys (press ? on a results page)",
     anonInline: "Also show \"Visit in Anonymous View\" under each result",
   };
+  if (!SP) for (const k of ["noAdblockBanner", "noPrivateBadge", "anonInline"]) delete LABELS[k];   // Startpage's own page parts
   Object.keys(LABELS).forEach((k) => GM_registerMenuCommand((S[k] ? "✓ " : "✗ ") + LABELS[k] + " (click to switch, then reload)", () => { S[k] = !S[k]; save(); location.reload(); }));
   GM_registerMenuCommand("Hidden and pinned sites…", () => openSites());
 })();

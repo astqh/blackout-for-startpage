@@ -1,17 +1,18 @@
 // ==UserScript==
 // @name         Quick answers for Startpage
 // @namespace    blackout-for-startpage/quick
-// @version      1.1.0
+// @version      1.2.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
 // @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/quick.user.js
 // @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/quick.user.js
-// @description  Small answers above Startpage results. A timer for searches like 5 minute timer, parcel tracking links, colour previews, coin flip, dice, random numbers, currency for searches Startpage's converter skips, and a shortcut to Startpage's translator. Each one can be turned off.
+// @description  Small answers above Startpage results. A timer for searches like 5 minute timer, parcel tracking links, colour previews, coin flip, dice, random numbers, currency for searches Startpage's converter skips, and a shortcut to Startpage's translator. Each one can be turned off. Also works on SearXNG.
 // @match        https://*.startpage.com/sp/search*
 // @match        https://*.startpage.com/do/search*
 // @match        https://*.startpage.com/do/dsearch*
 // @match        https://*.startpage.com/search*
+// @match        *://*/*search*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -27,11 +28,18 @@
  * for 6 hours. Parcel buttons are plain links; nothing goes to a carrier until you click one.
  * When Startpage shows its own answer (its currency converter, its timer), the matching card here stays hidden.
  * Options: ⚙ on any card, or the Violentmonkey icon → "Quick answers on/off".
+ * SearXNG: the same cards above the results of any SearXNG instance, except the translator shortcut (that is
+ * Startpage's own translator). Other pages are left alone: the script stops at once unless the page carries
+ * SearXNG's own <meta name="generator" content="searxng/…">.
  */
 
 (function () {
   "use strict";
   if (window.top !== window.self) return;
+  // Startpage, or a SearXNG instance at any address (known by its generator tag)
+  const SP = /(^|\.)startpage\.com$/i.test(location.hostname);
+  if (!SP && !document.querySelector('meta[name="generator"][content^="searx" i]')) return;
+  const SITE = SP ? "Startpage" : "SearXNG";
 
   // Defaults follow the browser's language setting (e.g. "en-CA" → Canada → CAD, Celsius).
   const REGION = (() => { try { return new Intl.Locale(navigator.language).maximize().region || ""; } catch (e) { return ""; } })();
@@ -51,11 +59,19 @@
     return (p.get("query") || p.get("q") || "").trim();
   }
   function getCategory() {
+    if (!SP) {
+      // SearXNG's selected category tab (a button, or a ticked box when it searches only on the magnifier); general = web
+      const b = $("#categories .category_button.selected, #categories input[type=checkbox]:checked");
+      const name = b ? b.name.replace(/^category_/, "") : (new URLSearchParams(location.search).get("categories") || "").split(",")[0];
+      return !name || name === "general" ? "web" : name;
+    }
     const c = $('#search input[name="cat"]');
     return (c && c.value) || new URLSearchParams(location.search).get("cat") || "web";
   }
-  // Startpage's own instant answers (currency converter, timer, weather...) sit in #ee-mainline-top.
-  const startpageAnswered = () => Array.from(document.querySelectorAll("#ee-mainline-top *")).some((e) => e.children.length && e.offsetHeight > 40);
+  // Startpage's own instant answers (currency converter, timer, weather...) sit in #ee-mainline-top; SearXNG's
+  // (its currency converter, calculator...) in #answers.
+  const startpageAnswered = () => (SP ? Array.from(document.querySelectorAll("#ee-mainline-top *")).some((e) => e.children.length && e.offsetHeight > 40)
+    : !!document.querySelector("#answers .answer"));
 
   // ---------------------------------------------------------------- understanding the search
   // Parcel tracking: the number's shape picks the carrier. A bare long number (could be a phone number, product
@@ -201,7 +217,7 @@
     "bulldog press horn revolution literature restaurant restaurants").split(" "));
   function translation(raw) {
     const q = raw.replace(/\s+/g, " ").trim().replace(/[?!.]+$/, "");
-    if (/^translat(e|or|ion)\b/i.test(q)) return null;                     // Startpage's own box takes these
+    if (!SP || /^translat(e|or|ion)\b/i.test(q)) return null;              // Startpage's own box takes these
     const lang = (w) => LANGS[w.toLowerCase()] || null;
     const words = (x) => x.toLowerCase().split(" ");
     const plain = (x) => !words(x).some((w) => NOT_WORDS.has(w)) && !lang(x);
@@ -330,11 +346,15 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>',
   };
 
+  // Above the web results: before Startpage's list, or at the top of SearXNG's (its results page is a grid)
+  function resultsSlot() {
+    if (SP) { const l = $(".w-gl"); return l && l.parentNode ? [l.parentNode, l] : null; }
+    const u = $("#urls"); return u ? [u, u.firstChild] : null;
+  }
   let host = null, root = null, current = null, optsOpen = false;
   function mount() {
     if (host && host.isConnected) return true;
-    const list = $(".w-gl");
-    if (!list || !list.parentNode) return false;
+    if (!resultsSlot()) return false;
     host = document.createElement("div"); host.id = "sp-quick-widget";
     root = host.attachShadow({ mode: "closed" });
     root.innerHTML = "<style>" + CSS + '</style><section class="card" style="container-type: inline-size"></section>';
@@ -345,8 +365,9 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
   function place() {
     if (!host || host.isConnected) return;
     const ai = document.getElementById("sp-instant-answer");                // sit above the Instant Answer
-    const anchor = ai && ai.isConnected ? ai : $(".w-gl");
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
+    if (ai && ai.isConnected) { ai.parentNode.insertBefore(host, ai); return; }
+    const at = resultsSlot();
+    if (at) at[0].insertBefore(host, at[1]);
   }
   const card = () => root.querySelector(".card");
   let cleanup = null;
@@ -370,8 +391,8 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
   function wireOptions() {
     const btn = root.querySelector(".gear"), box = root.querySelector(".opts"), s = settings();
     box.innerHTML = [["timer", "Timer (“5 minute timer”)"], ["sound", "Alarm sound when a timer ends"], ["parcel", "Parcel tracking buttons"], ["colour", "Colour preview"],
-      ["random", "Coin flip, dice, random number"], ["currency", "Currency (when Startpage has no converter)"],
-      ["translate", "Translation searches → Startpage's translator"], ["translateAuto", "…straight away when the search is clear (otherwise a button)"]].map(([k, l]) =>
+      ["random", "Coin flip, dice, random number"], ["currency", "Currency (when " + SITE + " has no converter)"]].concat(SP ? [
+      ["translate", "Translation searches → Startpage's translator"], ["translateAuto", "…straight away when the search is clear (otherwise a button)"]] : []).map(([k, l]) =>
       '<label><span>' + l + '</span><input type="checkbox" data-opt="' + k + '"' + (s[k] ? " checked" : "") + "></label>").join("") +
       '<div class="orow"><span>Your currency (for “100 euros”)</span><select data-opt="home" aria-label="Your currency">' +
       Object.keys(CURRENCIES).map((c) => '<option value="' + c + '"' + (c === s.home ? " selected" : "") + ">" + c + " · " + esc(CURRENCIES[c]) + "</option>").join("") + "</select></div>" +
@@ -580,7 +601,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
 
   GM_registerMenuCommand("Quick answers on/off", () => { const s = settings(); s.enabled = !s.enabled; saveSettings(s); if (s.enabled) start(true); else remove(); });
   let tries = 0;
-  const wait = () => { if ($(".w-gl .result") || tries++ > 40) start(false); else setTimeout(wait, 100); };
+  const wait = () => { if ($(SP ? ".w-gl .result" : "#urls .result") || tries++ > 40) start(false); else setTimeout(wait, 100); };
   if (document.readyState === "complete") setTimeout(wait, 50);
   else window.addEventListener("load", () => setTimeout(wait, 50), { once: true });
 })();

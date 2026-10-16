@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         F1 card for Startpage
 // @namespace    blackout-for-startpage/f1
-// @version      1.3.2
+// @version      1.4.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
 // @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/f1.user.js
 // @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/f1.user.js
-// @description  Formula 1 on Startpage. Session results from practice to race with team colours, driver initials and tyre strategy, the weekend schedule in your time zone, standings, and the next race on the home page.
+// @description  Formula 1 on Startpage. Session results from practice to race with team colours, driver initials and tyre strategy, the weekend schedule in your time zone, standings, and the next race on the home page. Also works on SearXNG.
 // @match        https://*.startpage.com/
 // @match        https://*.startpage.com/?*
 // @match        https://*.startpage.com/en/
@@ -15,6 +15,7 @@
 // @match        https://*.startpage.com/do/search*
 // @match        https://*.startpage.com/do/dsearch*
 // @match        https://*.startpage.com/search*
+// @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -34,11 +35,16 @@
  * finished session is fetched once (see "data" below).
  * Teams are shown by their colour and drivers by their initials; no logos or photos are loaded.
  * Options (⚙ in the card): driver initials, tyre strategy, the next race on the home page.
+ * SearXNG: the same card above the results and the next race on the home page of any SearXNG instance. Other pages
+ * are left alone: the script stops at once unless the page carries SearXNG's <meta name="generator" content="searxng/…">.
  */
 
 (function () {
   "use strict";
   if (window.top !== window.self) return;
+  // Startpage, or a SearXNG instance at any address (known by its generator tag)
+  const SP = /(^|\.)startpage\.com$/i.test(location.hostname);
+  if (!SP && !document.querySelector('meta[name="generator"][content^="searx" i]')) return;
 
   // photos: driver initials in team colours; tyres: stint bars on race and sprint results; home: the next race on the home page
   const SETTINGS_DEFAULT = { enabled: true, collapsed: false, photos: true, tyres: true, home: true };
@@ -455,11 +461,22 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
   };
 
+  // Above the web results: before Startpage's list, or at the top of SearXNG's (its results page is a grid)
+  function resultsSlot() {
+    if (SP) { const l = $(".w-gl"); return l && l.parentNode ? [l.parentNode, l] : null; }
+    const u = $("#urls"); return u ? [u, u.firstChild] : null;
+  }
+  // SearXNG's selected category tab (a button, or a ticked box when it searches only on the magnifier); general = web
+  function sxCategory() {
+    const b = $("#categories .category_button.selected, #categories input[type=checkbox]:checked");
+    const name = b ? b.name.replace(/^category_/, "") : (new URLSearchParams(location.search).get("categories") || "").split(",")[0];
+    return !name || name === "general" ? "web" : name;
+  }
+
   let host = null, root = null;
   function mount() {
     if (host && host.isConnected) return true;
-    const list = $(".w-gl");
-    if (!list || !list.parentNode) return false;
+    if (!resultsSlot()) return false;
     host = document.createElement("div"); host.id = "sp-f1-widget";
     root = host.attachShadow({ mode: "closed" });
     const st = document.createElement("style"); st.textContent = CSS;
@@ -472,8 +489,9 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
   function place() {
     if (!host || host.isConnected) return;
     const ai = document.getElementById("sp-instant-answer");                // sit above the Instant Answer when both show
-    const anchor = ai && ai.isConnected ? ai : $(".w-gl");
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
+    if (ai && ai.isConnected) { ai.parentNode.insertBefore(host, ai); return; }
+    const at = resultsSlot();
+    if (at) at[0].insertBefore(host, at[1]);
   }
   const card = () => root.querySelector(".card");
   function remove() { if (host) { host.remove(); host = null; } }
@@ -552,7 +570,7 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
   function wireOptions() {
     const btn = root.querySelector(".gear"), box = root.querySelector(".opts"), s = settings();
     box.innerHTML =
-      [["photos", "Driver initials"], ["tyres", "Tyre strategy on race and sprint results"], ["home", "Next-race countdown on the Startpage home page"]].map(([k, l]) =>
+      [["photos", "Driver initials"], ["tyres", "Tyre strategy on race and sprint results"], ["home", "Next-race countdown on the home page"]].map(([k, l]) =>
         '<label class="row"><span>' + l + '</span><input type="checkbox" data-opt="' + k + '"' + (s[k] ? " checked" : "") + "></label>").join("") +
       '<div class="row off"><span>To turn it back on: Violentmonkey icon → F1 card on/off</span><button type="button" class="offbtn">Turn the F1 card off</button></div>';
     const show = (open) => { optsOpen = open; box.hidden = !open; btn.setAttribute("aria-expanded", String(open)); };
@@ -712,7 +730,7 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
     if (!s.enabled) return;
     const box = $("#q") || $("input.search-form-input[name=query]");
     const query = ((box && box.value) || new URLSearchParams(location.search).get("query") || new URLSearchParams(location.search).get("q") || "").trim();
-    const cat = $('#search input[name="cat"]');
+    const cat = SP ? $('#search input[name="cat"]') : { value: sxCategory() };
     if (!query || (cat && cat.value && cat.value !== "web")) return;
     const q = parseQuery(query);
     const intent = q.strong || q.session || q.standings || q.schedule;
@@ -842,7 +860,7 @@ tr.next td:first-child, tr.now td:first-child { color: var(--home-acc, var(--sp-
     };
     window.addEventListener("sp-home:ready", useWidget);
     // The search box itself is absolutely positioned (for the suggestions list); go after its outer box.
-    const put = () => { const f = $("#search"); const anchor = f && (f.closest(".search-form-relative-container") || f.closest(".search-form-container") || f); if (anchor && !pill.isConnected) anchor.after(pill); };
+    const put = () => { const f = $("#search"); const anchor = f && ((SP && (f.closest(".search-form-relative-container") || f.closest(".search-form-container"))) || f); if (anchor && !pill.isConnected) anchor.after(pill); };
     if (!useWidget()) put();
     new MutationObserver(() => {
       if (document.getElementById("sp-home")) { if (!widget.isConnected) requestAnimationFrame(useWidget); }
@@ -851,11 +869,11 @@ tr.next td:first-child, tr.now td:first-child { color: var(--home-acc, var(--sp-
   }
 
   GM_registerMenuCommand("F1 card on/off", () => { const s = settings(); s.enabled = !s.enabled; saveSettings(s); if (!s.enabled) remove(); else start(); });
-  const isHome = /^\/(en\/?)?$/.test(location.pathname);
+  const isHome = SP ? /^\/(en\/?)?$/.test(location.pathname) : !!$('meta[name="endpoint"][content="index"]') || document.body.classList.contains("index_endpoint");
   let tries = 0;
   const wait = () => {
     if (isHome) { if ($("#search")) homeCountdown(); else if (tries++ < 40) setTimeout(wait, 100); return; }
-    if ($(".w-gl .result") || tries++ > 40) start(); else setTimeout(wait, 100);
+    if ($(SP ? ".w-gl .result" : "#urls .result") || tries++ > 40) start(); else setTimeout(wait, 100);
   };
   if (document.readyState === "complete") setTimeout(wait, 50);
   else window.addEventListener("load", () => setTimeout(wait, 50), { once: true });

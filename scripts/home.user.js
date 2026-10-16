@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         Home widgets for Startpage
 // @namespace    blackout-for-startpage/home
-// @version      1.2.0
+// @version      1.3.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
 // @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/home.user.js
 // @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/home.user.js
-// @description  Widgets under the search box on the Startpage home page. Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race. Turn each one on or off, drag them into any order and resize them. Pick your own accent, background, search bar and widget colours, with an optional glass look.
+// @description  Widgets under the search box on the Startpage home page. Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race. Turn each one on or off, drag them into any order and resize them. Pick your own accent, background, search bar and widget colours, with an optional glass look. Also works on SearXNG.
 // @match        https://*.startpage.com/*
+// @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
@@ -31,12 +32,25 @@
  * corner, and has Look: your own accent colour (every Startpage page), and page, search bar and widget colours, a
  * picture and a glass look (the home page). The picture stays in this browser.
  * Other scripts can add a widget: the F1 script adds "Formula 1" (its next race and weekend times).
+ * SearXNG: the same widgets under the search box of any SearXNG instance's home page. Other pages are left alone:
+ * the script stops at once unless the page carries SearXNG's own <meta name="generator" content="searxng/…">.
  */
 
-(function () {
+(function home() {
   "use strict";
   if (window.top !== window.self) return;
-  const isHome = /^\/([a-z]{2}\/?)?$/i.test(location.pathname);   // widgets on the home page; your accent on every page
+  // Startpage, or a SearXNG instance at any address (known by its generator tag, so wait until <head> is read)
+  const SP = /(^|\.)startpage\.com$/i.test(location.hostname);
+  if (!SP && document.readyState === "loading") return void document.addEventListener("DOMContentLoaded", home, { once: true });
+  if (!SP && !document.querySelector('meta[name="generator"][content^="searx" i]')) return;
+  // widgets on the home page; your accent on every page
+  const isHome = SP ? /^\/([a-z]{2}\/?)?$/i.test(location.pathname)
+    : !!document.querySelector('meta[name="endpoint"][content="index"]') || document.body.classList.contains("index_endpoint");
+  const SITE = SP ? "Startpage" : "SearXNG";
+  // the home page parts Look colours: Startpage's, or SearXNG's (its own colour variables follow the Blackout theme)
+  const PAGE = SP ? { clear: "body,#root,#___gatsby,.themeProvider,.Layout,.home,.search-home,.hero", box: ".search-home .search-form-container",
+    input: ".search-home .search-form-input", icons: ".search-home :is(.search-btn,.x-btn) svg" }
+    : { clear: "body,#main_index,.index,footer", box: ".index .search_box", input: ".index #q", icons: ".index :is(#send_search,#clear_search)" };
 
   // ---------------------------------------------------------------- settings
   // Defaults follow the browser's language setting (e.g. "en-CA" → Canada → CAD, Celsius).
@@ -93,7 +107,9 @@
     const L = S.look, a = hex(L.accent), p = hex(L.page), s = hex(L.search);
     let css = "";
     if (a) css += ":root:root{--sp-accent:" + a + "!important;--sp-link:" + a + "!important;--sp-visited:color-mix(in oklab," + a + " 62%,#6b6b78)!important;" +
-      "--sp-select:color-mix(in srgb," + a + " 28%,transparent)!important}.home.home,.home.home[data-theme]{--primary:" + a + "!important}";
+      "--sp-select:color-mix(in srgb," + a + " 28%,transparent)!important}" + (SP ? ".home.home,.home.home[data-theme]{--primary:" + a + "!important}"
+        : ":root:root{--color-result-link-font:" + a + "!important;--color-url-font:" + a + "!important;--color-categories-item-border-selected:" + a + "!important;" +
+          "--color-btn-background:" + a + "!important;--color-search-background-hover:" + a + "!important}");
     if (!isHome) return css;
     // the page colour (or the picture's brightness) sets the home page's whole palette, so menus and widgets match it
     const base = p || (lookImage ? (L.imgLight ? "#f4f4f6" : "#000000") : "");
@@ -101,20 +117,23 @@
       const k = inkOn(base), mix = (pct) => "color-mix(in srgb," + base + " " + pct + "%," + k.ink + ")";
       css += ":root:root{--sp-bg:" + base + "!important;--sp-surface:" + mix(94) + "!important;--sp-surface-2:" + mix(88) + "!important;--sp-field:" + mix(92) + "!important;" +
         "--sp-ink:" + k.ink + "!important;--sp-ink-2:" + k.ink2 + "!important;--sp-muted:" + k.muted + "!important;--sp-line:" + k.line + "!important;--sp-line-strong:" + k.line2 + "!important}" +
-        ":root:root,:root:root body{background:" + base + "!important}.home.home,.home.home[data-theme]{--background:" + base + "!important;background:" + base + "!important}";
+        ":root:root,:root:root body{background:" + base + "!important}" + (SP ? ".home.home,.home.home[data-theme]{--background:" + base + "!important;background:" + base + "!important}"
+          : ":root:root{--color-base-background:" + base + "!important;--color-footer-background:" + base + "!important}");
     }
     if (lookImage) css += ':root:root{background:' + base + ' url("' + lookImage + '") center/cover no-repeat fixed!important}' +
-      ":root:root :is(body,#root,#___gatsby,.themeProvider,.Layout,.home,.search-home,.hero){background:transparent!important}";
+      ":root:root :is(" + PAGE.clear + "){background:transparent!important}";
     if (s || L.glass) {
       const fill = s || "var(--sp-field,#16161a)";
-      css += ":root:root .search-home .search-form-container{background:" + (L.glass ? "color-mix(in srgb," + fill + " 55%,transparent)" : fill) + "!important" +
+      css += ":root:root " + PAGE.box + "{background:" + (L.glass ? "color-mix(in srgb," + fill + " 55%,transparent)" : fill) + "!important" +
         (L.glass ? ";backdrop-filter:blur(18px) saturate(1.4)!important" : "") + "}";
+      // SearXNG paints the box, the clear button and the search button separately
+      if (!SP) css += ":root:root .index :is(#q,#send_search,#clear_search){background:transparent!important}";
     }
     if (s) {
       const k = inkOn(s);
-      css += ":root:root .search-home .search-form-container{border-color:" + k.line2 + "!important}:root:root .search-home .search-form-container:focus-within{border-color:var(--sp-accent)!important}" +
-        ":root:root .search-home .search-form-input{color:" + k.ink + "!important}:root:root .search-home .search-form-input::placeholder{color:" + k.muted + "!important}" +
-        ":root:root .search-home :is(.search-btn,.x-btn) svg{color:" + k.muted + "!important}";
+      css += ":root:root " + PAGE.box + "{border-color:" + k.line2 + "!important}:root:root " + PAGE.box + ":focus-within{border-color:var(--sp-accent)!important}" +
+        ":root:root " + PAGE.input + "{color:" + k.ink + "!important}:root:root " + PAGE.input + "::placeholder{color:" + k.muted + "!important}" +
+        ":root:root " + PAGE.icons + "{color:" + k.muted + "!important}";
     }
     return css;
   }
@@ -719,7 +738,7 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
         (k === "page" ? '<span class="sp"></span><button class="btn small" type="button" data-a="pic">' + (lookImage ? "Change picture" : "Picture…") + "</button>" +
           (lookImage ? '<button class="link" type="button" data-a="nopic">Remove picture</button>' : "") : "") + "</div>").join("") +
       '<label class="row"><input type="checkbox" class="glass"' + (L.glass ? " checked" : "") + "> Glass: see-through widgets and search bar</label>" +
-      '<span class="st">The accent shows on every Startpage page, the rest on this home page. A picture stays in this browser. Text turns dark or light by itself to stay readable.</span>' +
+      '<span class="st">The accent shows on every ' + SITE + ' page, the rest on this home page. A picture stays in this browser. Text turns dark or light by itself to stay readable.</span>' +
       '<input type="file" accept="image/*" hidden class="file">';
   }
   let lookSaveT = 0;
@@ -949,9 +968,10 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     if (!host) return false;
     if (host.isConnected) return true;
     // under the logo + search box block; it grows the page, so "Learn more" moves down below the widgets
-    const inner = document.querySelector(".search-home-inner");
+    // (SearXNG: right after its search form, inside the home page's centred block)
+    const inner = SP ? document.querySelector(".search-home-inner") : null;
     const f = document.querySelector("#search");
-    const anchor = inner || (f && (f.closest(".search-form-relative-container") || f.parentElement));
+    const anchor = inner || (f && (SP ? f.closest(".search-form-relative-container") || f.parentElement : f));
     if (!anchor) return false;
     anchor.after(host);
     return true;
@@ -972,7 +992,7 @@ textarea { width: 100%; flex: 1; min-height: 7.5em; resize: vertical; line-heigh
     root.addEventListener("dblclick", onDblClick);
     root.addEventListener("input", onLookInput);
     root.addEventListener("change", (e) => { if (e.target.matches && e.target.matches("input[type=color][data-k]")) { clearTimeout(lookSaveT); save(); } });
-    // typing in a widget stays in the widget (Startpage's page would otherwise react to the keys)
+    // typing in a widget stays in the widget (Startpage's page, or SearXNG's hotkeys, would otherwise react to the keys)
     for (const type of ["keydown", "keyup", "keypress", "input"]) host.addEventListener(type, (e) => e.stopPropagation());
     if (!place()) { host = null; return; }
     draw();
