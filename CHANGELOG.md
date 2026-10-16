@@ -3,6 +3,35 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.5.0 · 16 October 2026
+
+Works on SearXNG as well as Startpage. Tested on SearXNG as it was on 16 October 2026 (its standard "simple" theme)
+running on this computer, in Chromium, with the scripts loaded the way Violentmonkey loads them and a stand-in AI:
+the theme, the ⋮ menu, pinning and hiding, keys, home widgets, quick answers, an answer, a follow-up that searched
+SearXNG and a summary. Startpage checked again on sample pages. Not yet tested on a public SearXNG instance or with a
+real AI service.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.1 |
+| Blackout theme for SearXNG | 1.0.0 (new) |
+| Tweaks | 1.2.0 |
+| Home widgets | 1.3.0 |
+| Instant Answer | 2.6.0 |
+| F1 card | 1.4.0 |
+| Quick answers | 1.2.0 |
+
+- New: **Blackout for SearXNG**, the black theme for any SearXNG instance. It only changes pages that say they are
+  SearXNG.
+- Every script works on SearXNG instances at any address. Other sites are left alone.
+- Instant Answer works only on the SearXNG instances you turn it on for, and its searches go to that instance.
+- On SearXNG the ⋮ menu opens the archived copy (or the proxy) instead of Anonymous View, and the translator shortcut is off.
+- On SearXNG the keys from Tweaks come before SearXNG's own keys with the same letters.
+
+SearXNG page parts the scripts rely on: `<meta name="generator" content="searxng/…">`, `<meta name="endpoint">`,
+`form#search`, `#q`, `#categories` (`.category_button.selected`), `#urls > article.result` with `a.url_header`,
+`h3 a`, `p.content`, `a.cache_link`, `a.proxyfied_link`, and `#answers .answer`.
+
 ## 1.4.0 · 12 October 2026
 
 Tested on Startpage as it was on 12 October 2026, in Firefox with Violentmonkey against a stand-in AI: a follow-up

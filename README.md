@@ -1,7 +1,8 @@
 # Blackout for Startpage
 
-A true black theme and a few small add-ons for [Startpage](https://www.startpage.com). Install only the parts you
-want. Each one works on its own.
+A true black theme and a few small add-ons for [Startpage](https://www.startpage.com), and for any
+[SearXNG](https://docs.searxng.org/) instance too (see [SearXNG](#searxng)). Install only the parts you want. Each one
+works on its own.
 
 **[Try the demo](https://astqh.github.io/blackout-for-startpage/demo/)** ·
 **[Install page](https://astqh.github.io/blackout-for-startpage/)** ·
@@ -199,6 +200,27 @@ Startpage's own translator only opens when a search starts with "translate". Sea
 `good morning in french` or `how do you say thank you in spanish` are passed to it for you. Less clear ones like
 `parle francais english` get a Translate button. Searches like `learn spanish` are left alone. Going back never
 sends you forward again.
+
+## SearXNG
+
+Everything here also works on [SearXNG](https://docs.searxng.org/), on any instance: a public one, or your own at an
+address like `http://localhost:8888`. It was built for SearXNG's standard look (the "simple" theme).
+
+- **Theme.** SearXNG pages get their own style, **Blackout for SearXNG** (`theme/blackout-searxng.user.css`), with the
+  same accent colours and results position. Install it from the [install page](https://astqh.github.io/blackout-for-startpage/).
+  Stylus offers it to every site, but it only changes pages that carry SearXNG's own `generator` tag, so other sites
+  look the same as before. To be stricter, set **Applies to** in Stylus to your instance's address.
+- **Scripts.** The same five scripts, nothing extra to install. Violentmonkey shows that they can run on every site,
+  because a SearXNG instance can live at any address. On any page that isn't SearXNG they stop straight away and
+  change nothing.
+- **Instant Answer** only works on the SearXNG instances you turn it on for, because any site could pretend to be
+  SearXNG. Click **Use Instant Answer on …** above the results (or turn it on from its settings while you're on that
+  instance). The Violentmonkey menu on that instance turns it off again. In conversations it searches that instance.
+- **What's different from Startpage.** Open in Anonymous View becomes **Open the archived copy** (SearXNG's "cached"
+  link), or **Open through the proxy** when your instance has one. The shortcut to Startpage's translator is
+  Startpage's own, so it's off on SearXNG. The uBlock filters below are only for Startpage.
+- **Keys.** SearXNG has keyboard keys of its own. On its results pages the keys listed under [Tweaks](#tweaks) win,
+  and SearXNG's other keys keep working.
 
 ## Optional extras
 

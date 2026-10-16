@@ -7,6 +7,7 @@ $files = @{
   '/'                               = @("$root\index.html", 'text/html; charset=utf-8')
   '/index.html'                     = @("$root\index.html", 'text/html; charset=utf-8')
   '/theme/blackout.user.css'        = @("$root\theme\blackout.user.css", 'text/css; charset=utf-8')
+  '/theme/blackout-searxng.user.css' = @("$root\theme\blackout-searxng.user.css", 'text/css; charset=utf-8')
   '/scripts/tweaks.user.js'         = @("$root\scripts\tweaks.user.js", $js)
   '/scripts/home.user.js'           = @("$root\scripts\home.user.js", $js)
   '/scripts/instant-answer.user.js' = @("$root\scripts\instant-answer.user.js", $js)
