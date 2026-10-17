@@ -69,8 +69,9 @@
     const list = (GM_getValue("searxngHosts", []) || []).filter((h) => h !== location.host);
     GM_setValue("searxngHosts", on ? list.concat(location.host) : list);
   }
-  // SearXNG builds each result as #urls > article.result: a.url_header (icon, address), h3 > a, p.content
-  const RESULT = SP ? ".w-gl > .result" : "#urls > .result:not(.result-images)";
+  // SearXNG builds each result as article.result: a.url_header (icon, address), h3 > a, p.content. They sit in #urls,
+  // or in a div.template_group_<kind> there when a search mixes kinds of results. Picture results are left out.
+  const RESULT = SP ? ".w-gl > .result" : ':is(#urls > .result, #urls > [class*="template_group_"] > .result):not(.result-images)';
   const own = (a) => (SP ? /(^|\.)startpage\.com$/i.test(a.hostname) : a.hostname === location.hostname);
 
   // ---------------------------------------------------------------- settings

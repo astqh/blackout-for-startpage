@@ -35,10 +35,11 @@
   const SP = /(^|\.)startpage\.com$/i.test(location.hostname);
   if (!SP && document.readyState === "loading") return void document.addEventListener("DOMContentLoaded", tweaks, { once: true });
   if (!SP && !document.querySelector('meta[name="generator"][content^="searx" i]')) return;
-  // SearXNG builds each result as #urls > article.result: a.url_header (icon, address), h3 > a, p.content, then the
-  // engines and the "cached" link. Picture results are left out.
+  // SearXNG builds each result as article.result: a.url_header (icon, address), h3 > a, p.content, then the engines
+  // and the "cached" link. They sit in #urls, or in a div.template_group_<kind> there when a search mixes kinds of
+  // results (web and videos, say). Picture results are left out.
   const LIST = SP ? ".w-gl" : "#urls";
-  const RESULT = SP ? ".w-gl > .result" : "#urls > .result:not(.result-images)";
+  const RESULT = SP ? ".w-gl > .result" : ':is(#urls > .result, #urls > [class*="template_group_"] > .result):not(.result-images)';
   const own = (a) => (SP ? /(^|\.)startpage\.com$/i.test(a.hostname) : a.hostname === location.hostname);
 
   const DEFAULTS = { sameTab: true, noAdblockBanner: true, noPrivateBadge: true, tools: true, keys: true, anonInline: false };
@@ -93,6 +94,8 @@
     // the boxes above the results stay on top (on SearXNG only this project's; its own groups keep their place)
     LIST + "[data-spt-pins] > " + (SP ? ":not(.result)" : '[id^="sp-"]') + " { order: -2; }",
     LIST + "[data-spt-pins] > #spt-note { order: 1; }",
+    // SearXNG's groups of web and video results open up while sites are pinned, so pins move up across groups
+    SP ? "" : '#urls[data-spt-pins] > [class*="template_group_"]:not(.template_group_images) { display: contents; }',
     RESULT + "[data-spt-pin] { order: -1; }",
     RESULT + "[data-spt-hide]:not([data-spt-show]) { display: none !important; }",
     RESULT + "[data-spt-hide][data-spt-show] { opacity: .5; }",
@@ -235,8 +238,8 @@ button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; borde
     if (!gl) return;
     let pins = 0, hidden = 0;
     const sites = [];
-    for (const r of gl.children) {
-      if (!r.matches(RESULT) || r.classList.contains("h")) continue;
+    for (const r of gl.querySelectorAll(RESULT)) {
+      if (r.classList.contains("h")) continue;
       const it = info(r);
       if (!it) continue;
       const pin = !!ruleFor(SITES.pinned, it.host), hide = !pin && !!ruleFor(SITES.hidden, it.host);

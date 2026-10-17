@@ -8,8 +8,8 @@ Startpage changed its page since.
 Works on SearXNG as well as Startpage. Tested on SearXNG as it was on 16 October 2026 (its standard "simple" theme)
 running on this computer, in Chromium, with the scripts loaded the way Violentmonkey loads them and a stand-in AI:
 the theme, the ⋮ menu, pinning and hiding, keys, home widgets, quick answers, an answer, a follow-up that searched
-SearXNG and a summary. Startpage checked again on sample pages. Not yet tested on a public SearXNG instance or with a
-real AI service.
+SearXNG and a summary. Also tested on the public instance priv.au on 17 October 2026 with real results, mixed web and
+video results, and the images tab. Startpage checked again on sample pages. Not yet tested with a real AI service.
 
 | Part | Version |
 |---|---|
@@ -29,7 +29,8 @@ real AI service.
 - On SearXNG the keys from Tweaks come before SearXNG's own keys with the same letters.
 
 SearXNG page parts the scripts rely on: `<meta name="generator" content="searxng/…">`, `<meta name="endpoint">`,
-`form#search`, `#q`, `#categories` (`.category_button.selected`), `#urls > article.result` with `a.url_header`,
+`form#search`, `#q`, `#categories` (`.category_button.selected`), `article.result` in `#urls` or in its
+`div.template_group_*` groups, with `a.url_header`,
 `h3 a`, `p.content`, `a.cache_link`, `a.proxyfied_link`, and `#answers .answer`.
 
 ## 1.4.0 · 12 October 2026
