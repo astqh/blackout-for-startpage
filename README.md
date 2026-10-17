@@ -20,7 +20,7 @@ Not made by or connected to Startpage, Formula 1, the FIA or any team.
 | **Home widgets** | Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race under the search box on the home page. Resize them, and pick your own colours or a picture. | Weather sends the city you type once, then only its map position, to Open-Meteo. Currency asks Frankfurter for the day's rates. |
 | **Instant Answer** | A short answer above your results, written from those results. Continue it as a conversation that can search and read pages. Off until you turn it on. | Only when it's on, and only to the AI service you pick. It gets your search and the titles and descriptions of the results. In a conversation its searches go to Startpage and the pages it reads are fetched from the sites. |
 | **F1 card** | Formula 1 results, tyre strategy, standings and the race weekend schedule in your time zone. | Requests like "2026 round 17 qualifying" to Jolpica-F1 and OpenF1. Never your search. |
-| **Quick answers** | Timer, parcel tracking links, colour preview, coin flip, dice, random numbers, currency and a shortcut to Startpage's translator. | Currency only. It asks Frankfurter for the day's rates. |
+| **Quick answers** | Timer, parcel tracking links, colour preview, coin flip, dice, random numbers, currency, an internet speed test and a shortcut to Startpage's translator. | Currency asks Frankfurter for the day's rates. The speed test, only when you click Start, sends test data to and from Cloudflare. |
 
 There is no server, no account and no tracking. Nothing is ever sent to this project.
 
@@ -64,7 +64,7 @@ themselves.
 - **Home widgets.** Click **Customize** under the widgets, or hold any widget for a moment, to add, hide, move, resize or set them up. **Look** sets your colours.
 - **Instant Answer.** Click **Turn on Instant Answer** above your results, then pick a service. The expand button next to an answer continues it as a conversation.
 - **F1 card.** Search things like `monza qualifying`, `f1 standings` or `next f1 race`.
-- **Quick answers.** Search `5 minute timer`, `#a3c4ff`, `flip a coin`, `roll 2d6` or `100 euros`.
+- **Quick answers.** Search `5 minute timer`, `#a3c4ff`, `flip a coin`, `roll 2d6`, `100 euros` or `speed test`.
 - **Switches.** Click the Violentmonkey icon on a Startpage tab. Each script lists its on and off switches there.
 
 ## Demo and screenshots
@@ -193,7 +193,12 @@ out, and if a service says it's busy the card waits at least a minute and shows 
 ### Quick answers
 
 Try `5 minute timer`, a tracking number like `1Z999AA10123456784`, `#a3c4ff`, `flip a coin`, `roll 2d6`,
-`random number between 1 and 50` or `100 euros`. Each card has its own switch under ⚙.
+`random number between 1 and 50`, `100 euros` or `speed test`. Each card has its own switch under ⚙.
+
+The speed test (`speed test`, `test my wifi`, `how fast is my internet`) shows download, upload, latency and jitter. It
+starts only when you click **Start test** and uses Cloudflare's speed test service (`speed.cloudflare.com`), so
+Cloudflare sees your IP address, as with any site. It moves up to about 80 MB on a fast line, so mind a metered
+connection.
 
 Startpage's own translator only opens when a search starts with "translate". Searches like
 `good morning in french` or `how do you say thank you in spanish` are passed to it for you. Less clear ones like

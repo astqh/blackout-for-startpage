@@ -3,6 +3,24 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.5.0 · 17 October 2026
+
+Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on a sample Startpage page, with a local
+stand-in for Cloudflare's speed test service (the real one couldn't be reached from the test machine). Not yet tested
+against speed.cloudflare.com itself.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.1 |
+| Tweaks | 1.1.0 |
+| Home widgets | 1.2.0 |
+| Instant Answer | 2.5.0 |
+| F1 card | 1.3.2 |
+| Quick answers | 1.2.0 |
+
+- Quick answers has an internet speed test for searches like `speed test` or `test my wifi`: download, upload, latency
+  and jitter, measured with Cloudflare's speed test service. It starts only when you click Start test.
+
 ## 1.4.0 · 12 October 2026
 
 Tested on Startpage as it was on 12 October 2026, in Firefox with Violentmonkey against a stand-in AI: a follow-up
