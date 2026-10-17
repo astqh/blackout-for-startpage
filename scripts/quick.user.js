@@ -41,7 +41,7 @@
   const EURO = "AT BE HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES".split(" ");
   const localCurrency = () => ({ CA: "CAD", US: "USD", GB: "GBP", AU: "AUD", NZ: "NZD", JP: "JPY", CH: "CHF", IN: "INR", SE: "SEK", NO: "NOK", DK: "DKK",
     PL: "PLN", CZ: "CZK", HU: "HUF", BR: "BRL", MX: "MXN", ZA: "ZAR", SG: "SGD", HK: "HKD", KR: "KRW", CN: "CNY", TR: "TRY", IL: "ILS" }[REGION] || (EURO.includes(REGION) ? "EUR" : "USD"));
-  const DEFAULTS = { enabled: true, timer: true, sound: true, parcel: true, colour: true, random: true, currency: true, speed: true, translate: true, translateAuto: true, home: localCurrency() };
+  const DEFAULTS = { enabled: true, timer: true, sound: true, parcel: true, colour: true, random: true, currency: true, speed: true, gauge: true, translate: true, translateAuto: true, home: localCurrency() };
   const settings = () => Object.assign({}, DEFAULTS, GM_getValue("settings", {}));
   const saveSettings = (s) => GM_setValue("settings", s);
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -325,6 +325,26 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
 .stat.small .v { font-size: 20px; }
 .stat.now .v { color: var(--sp-accent, #6677fb); }
 .sline { margin-bottom: 12px; }
+.sbox { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 8px 22px; align-items: center; margin-bottom: 8px; }
+.sbox .sgrid { grid-template-columns: repeat(2, minmax(110px, max-content)); gap: 14px 44px; margin: 0; }
+.gauge { position: relative; width: 230px; }
+.gauge svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gtrack, .gfill { fill: none; stroke-width: 12; stroke-linecap: round; }
+.gtrack { stroke: var(--sp-surface-2, rgba(127,127,127,.18)); }
+.gfill { stroke: var(--gc, var(--sp-accent, #6677fb)); transition: stroke-dasharray .3s ease-out; }
+.gtick { font: 600 9.5px var(--sp-font, sans-serif); fill: var(--sp-muted, rgba(127,127,127,.9)); text-anchor: middle; dominant-baseline: middle; }
+.needle { stroke: var(--sp-ink, currentColor); stroke-width: 3; stroke-linecap: round; transform-origin: 100px 100px; transition: transform .3s ease-out; }
+.hub { fill: var(--sp-ink, currentColor); }
+.gread { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; line-height: 1.15; }
+.gread .gv { font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
+.gread .gu { font-size: 12px; color: var(--sp-ink-2, inherit); margin-left: 3px; }
+.gread .gl { display: block; font: 600 11px var(--sp-font, sans-serif); letter-spacing: .06em; text-transform: uppercase; color: var(--gc, var(--sp-muted, inherit)); }
+.gauge.up { --gc: #4fd1a5; }
+.stat.now.upv .v { color: #4fd1a5; }
+.nogauge .gauge { display: none; }
+.nogauge .sbox { grid-template-columns: minmax(0, 1fr); }
+.nogauge .sbox .sgrid { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); margin: 4px 0 12px; }
+@container (max-width: 520px) { .sbox { grid-template-columns: minmax(0, 1fr); justify-items: center; } .sbox .sgrid { width: 100%; } }
 /* options */
 .opts { display: grid; gap: 9px; padding: 10px 16px 12px; border-top: 1px solid var(--sp-line, rgba(127,127,127,.2)); border-bottom: 1px solid var(--sp-line, rgba(127,127,127,.2)); font-size: 13px; color: var(--sp-ink-2, inherit); }
 .opts label, .opts .orow { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -391,7 +411,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     const btn = root.querySelector(".gear"), box = root.querySelector(".opts"), s = settings();
     box.innerHTML = [["timer", "Timer (“5 minute timer”)"], ["sound", "Alarm sound when a timer ends"], ["parcel", "Parcel tracking buttons"], ["colour", "Colour preview"],
       ["random", "Coin flip, dice, random number"], ["currency", "Currency (when Startpage has no converter)"],
-      ["speed", "Internet speed test (runs only when you click Start)"],
+      ["speed", "Internet speed test (runs only when you click Start)"], ["gauge", "…with a speedometer"],
       ["translate", "Translation searches → Startpage's translator"], ["translateAuto", "…straight away when the search is clear (otherwise a button)"]].map(([k, l]) =>
       '<label><span>' + l + '</span><input type="checkbox" data-opt="' + k + '"' + (s[k] ? " checked" : "") + "></label>").join("") +
       '<div class="orow"><span>Your currency (for “100 euros”)</span><select data-opt="home" aria-label="Your currency">' +
@@ -402,7 +422,8 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     btn.addEventListener("click", () => show(box.hidden));
     box.querySelectorAll("[data-opt]").forEach((el) => el.addEventListener("change", () => {
       const st = settings(); st[el.dataset.opt] = el.type === "checkbox" ? el.checked : el.value; saveSettings(st);
-      if (el.dataset.opt !== "sound") start(true);                  // re-read the search with the new options
+      if (el.dataset.opt === "gauge") card().classList.toggle("nogauge", !el.checked);   // at once, even mid-test
+      else if (el.dataset.opt !== "sound") start(true);                  // re-read the search with the new options
     }));
     box.querySelector(".offbtn").addEventListener("click", () => { const st = settings(); st.enabled = false; saveSettings(st); optsOpen = false; remove(); });
   }
@@ -535,7 +556,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
   const SPEED = "https://speed.cloudflare.com/";
   const mbps = (bytes, ms) => (bytes * 8) / (ms / 1000) / 1e6;
   const pct = (list, p) => { const a = list.slice().sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : 0; };
-  const fmtMbps = (v) => (v >= 100 ? Math.round(v) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
+  const fmtMbps = (v) => (v >= 99.95 ? Math.round(v) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
   function xfer(up, bytes, onProgress, keep) {
     return new Promise((resolve, reject) => {
       const t0 = performance.now();
@@ -543,7 +564,9 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
         method: up ? "POST" : "GET", url: SPEED + (up ? "__up" : "__down?bytes=" + bytes), anonymous: true, timeout: 30000,
         data: up ? new Blob([new Uint8Array(bytes)]) : undefined, headers: up ? { "Content-Type": "application/octet-stream" } : {},
         responseType: up ? undefined : "arraybuffer",
-        onprogress: (e) => { if (onProgress && e && e.loaded) onProgress(e.loaded, performance.now() - t0); },
+        onprogress: (e) => { if (!up && onProgress && e && e.loaded) onProgress(e.loaded, performance.now() - t0); },
+        // live upload progress where the add-on reports it (Violentmonkey does); otherwise the last finished transfer shows
+        upload: { onprogress: (e) => { if (up && onProgress && e && e.loaded) onProgress(e.loaded, performance.now() - t0); } },
         onload: (r) => {
           if (r.status >= 400) return reject(new Error("HTTP " + r.status));
           const colo = /^cf-ray:\s*\S+-([A-Z]{3})\s*$/im.exec(r.responseHeaders || "");
@@ -582,11 +605,31 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     const intro = '<p class="muted sline">Measures your connection with Cloudflare’s speed test (speed.cloudflare.com). Nothing is sent until you click Start. ' +
       "A test moves up to about 80 MB on a fast line, so mind a metered connection.</p>";
     let st = null;
-    const stat = (k, label, v, unit, small) => '<div class="stat' + (small ? " small" : "") + (st.phase === k && !st.err ? " now" : "") + '"><b>' + label + '</b><span class="v">' + v + '</span><span class="u">' + unit + "</span></div>";
+    const stat = (k, label, v, unit, small) => '<div class="stat' + (small ? " small" : "") + (st.phase === k && !st.err ? " now" + (k === "up" ? " upv" : "") : "") + '"><b>' + label + '</b><span class="v">' + v + '</span><span class="u">' + unit + "</span></div>";
+    // Speedometer: 0 to 1000 Mbps on a log scale over a 240° arc; the needle follows the live speed.
+    const G_MAX = 1000, gFrac = (v) => Math.max(0, Math.min(1, Math.log10(1 + v) / Math.log10(1 + G_MAX)));
+    const gPoint = (f, r) => { const a = (150 + 240 * f) * Math.PI / 180; return [100 + r * Math.cos(a), 100 + r * Math.sin(a)]; };
+    const GAUGE = '<div class="gauge"><svg viewBox="0 0 200 170" role="img" aria-label="Speedometer"><path class="gtrack" pathLength="100" d="M30.72 140 A80 80 0 1 1 169.28 140"/>' +
+      '<path class="gfill" pathLength="100" d="M30.72 140 A80 80 0 1 1 169.28 140" stroke-dasharray="0 100"/>' +
+      [0, 5, 10, 50, 100, 250, 500, 1000].map((v) => { const [x, y] = gPoint(gFrac(v), 58); return '<text class="gtick" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '">' + (v >= 1000 ? "1G" : v) + "</text>"; }).join("") +
+      '<line class="needle" x1="100" y1="100" x2="168" y2="100"/><circle class="hub" cx="100" cy="100" r="5"/></svg>' +
+      '<div class="gread"><span class="gv">0</span><span class="gu">Mbps</span><span class="gl">Ready</span></div></div>';
+    const paintGauge = () => {
+      const g = body.querySelector(".gauge"); if (!g) return;
+      const k = st.phase === "up" ? "up" : st.phase === "done" || st.err ? (st.up != null ? "up" : "down") : "down";
+      const running = !st.err && (st.phase === "down" || st.phase === "up");
+      const v = running ? (st.now || st[st.phase] || 0) : st.phase === "done" ? st[k] || 0 : 0, f = gFrac(v);   // done: rests on the result shown
+      g.classList.toggle("up", st.phase === "up" || (st.phase === "done" && k === "up"));
+      g.querySelector(".gfill").setAttribute("stroke-dasharray", (f * 100).toFixed(2) + " 100");
+      g.querySelector(".needle").style.transform = "rotate(" + (150 + 240 * f).toFixed(1) + "deg)";
+      g.querySelector(".gv").textContent = running ? fmtMbps(v) : st.phase === "ping" && !st.err ? "…" : st[k] != null ? fmtMbps(st[k]) : "–";
+      g.querySelector(".gl").textContent = st.err ? "Stopped" : { ping: "Latency", down: "Download", up: "Upload" }[st.phase] || "Done";
+    };
     const paint = () => {
       const live = (k) => (st.phase === k && st.now ? fmtMbps(st.now) : st[k] != null ? fmtMbps(st[k]) : "–");
       body.querySelector(".sgrid").innerHTML = stat("down", "Download", live("down"), "Mbps") + stat("up", "Upload", live("up"), "Mbps") +
         stat("ping", "Latency", st.ping != null ? Math.round(st.ping) : "–", "ms", true) + stat("jitter", "Jitter", st.jitter != null ? Math.round(st.jitter) : "–", "ms", true);
+      paintGauge();
       body.querySelector(".state").textContent = st.err ? "The test stopped: " + st.err + "." : { ping: "Measuring latency…", down: "Testing download…", up: "Testing upload…",
         done: "Done" + (st.colo ? " · Cloudflare server " + st.colo : "") + " · " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }[st.phase] || "";
     };
@@ -596,7 +639,8 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     };
     const start = () => {
       st = { phase: "ping", now: 0, keep: {}, stop: false };
-      body.innerHTML = '<div class="sgrid"></div><p class="muted sline state" role="status"></p><div class="row"><button class="b pri act" type="button">Stop</button></div>';
+      card().classList.toggle("nogauge", !settings().gauge);
+      body.innerHTML = '<div class="sbox">' + GAUGE + '<div class="sgrid"></div></div><p class="muted sline state" role="status"></p><div class="row"><button class="b pri act" type="button">Stop</button></div>';
       const act = body.querySelector(".act"), me = st;
       act.addEventListener("click", () => { if (me.phase === "done" || me.err) start(); else { me.stop = true; try { me.keep.req && me.keep.req.abort(); } catch (e) { /* gone */ } } });
       paint();

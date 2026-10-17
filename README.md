@@ -195,8 +195,8 @@ out, and if a service says it's busy the card waits at least a minute and shows 
 Try `5 minute timer`, a tracking number like `1Z999AA10123456784`, `#a3c4ff`, `flip a coin`, `roll 2d6`,
 `random number between 1 and 50`, `100 euros` or `speed test`. Each card has its own switch under ⚙.
 
-The speed test (`speed test`, `test my wifi`, `how fast is my internet`) shows download, upload, latency and jitter. It
-starts only when you click **Start test** and uses Cloudflare's speed test service (`speed.cloudflare.com`), so
+The speed test (`speed test`, `test my wifi`, `how fast is my internet`) shows download, upload, latency and jitter,
+with a speedometer that follows the live speed (turn it off under ⚙ on the card). It starts only when you click **Start test** and uses Cloudflare's speed test service (`speed.cloudflare.com`), so
 Cloudflare sees your IP address, as with any site. It moves up to about 80 MB on a fast line, so mind a metered
 connection.
 

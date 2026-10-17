@@ -19,7 +19,8 @@ against speed.cloudflare.com itself.
 | Quick answers | 1.2.0 |
 
 - Quick answers has an internet speed test for searches like `speed test` or `test my wifi`: download, upload, latency
-  and jitter, measured with Cloudflare's speed test service. It starts only when you click Start test.
+  and jitter, measured with Cloudflare's speed test service, with a speedometer you can turn off under ⚙. It starts
+  only when you click Start test.
 
 ## 1.4.0 · 12 October 2026
 
