@@ -46,6 +46,19 @@ Interface (checked at 1600 and 400 pixels wide, with the Blackout theme and on a
   pages without the theme, Instant Answer, quick answers and the ⋮ menu use darker greys and a darker accent so text
   and buttons reach a contrast of 4.5. The speed test's upload colour is darker on light pages.
 
+Reliability (each failure tried with the stand-in):
+
+- A **Stop** button shows while the answer, a follow-up or a conversation reply is being written. It keeps the words
+  so far (marked "stopped", not saved); stopped before any words, it offers Ask AI again.
+- A stopped conversation reply no longer leaves the panel stuck: the next message is answered.
+- When the AI service is busy or you've reached its limit (429), it says so, with the wait the service asks for, and
+  doesn't retry by itself.
+- An empty reply says so in plain words instead of "Something went wrong".
+- When Startpage asks for its "verify" check during the AI's own search, the step says to search once on
+  startpage.com, and the answer still comes from what it has.
+- Checked and unchanged: offline, a refused key, a slow service (3 s to the first words) and no reply at all (it gives
+  up after 90 s with "The answer took too long").
+
 ## 1.5.0 · 17 October 2026
 
 Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on a sample Startpage page, with a local

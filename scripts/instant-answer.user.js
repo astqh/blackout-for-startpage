@@ -440,6 +440,7 @@
             if (done) return;
             if (r.status === 401 || r.status === 403) return fail("key");
             if (r.status === 404 && /model/i.test(r.responseText || "")) return fail("model");
+            if (r.status === 429) { const ra = /^retry-after:\s*(\d+)/im.exec(r.responseHeaders || ""); return fail("rate" + (ra ? ":" + ra[1] : "")); }   // no retrying on its own
             if (r.status === 400 || r.status === 422) return fail("HTTP " + r.status + ": " + String(r.responseText || "").slice(0, 160), r.responseText, true);
             if (r.status >= 400) return fail("HTTP " + r.status + ": " + String(r.responseText || "").slice(0, 160));
             feed((r.responseText || "") + "\n");
@@ -560,6 +561,8 @@
 .meta { color: var(--mut); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .right { margin-left: auto; display: flex; align-items: center; gap: 2px; flex: none; }
 .icon { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 999px; display: inline-grid; place-items: center; color: var(--sp-ink-2, inherit); }
+.icon.stopbtn { width: auto; height: 26px; padding: 0 11px 0 9px; grid-auto-flow: column; gap: 6px; font: 600 12.5px/1 var(--sp-font, "Segoe UI", system-ui, sans-serif); color: var(--sp-ink, inherit); box-shadow: inset 0 0 0 1px var(--sp-line-strong, rgba(127,127,127,.35)); margin-right: 4px; }
+.icon.stopbtn svg { width: 10px; height: 10px; }
 .icon:hover, .icon[aria-expanded="true"] { background: var(--sp-surface-2, rgba(127,127,127,.14)); color: var(--sp-ink, inherit); }
 .icon svg { width: 16px; height: 16px; }
 .stack { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 5px; border-radius: 999px; font: 600 12px var(--sp-font, "Segoe UI", sans-serif); color: var(--sp-ink-2, inherit); }
@@ -667,12 +670,20 @@ button.btn:hover { border-color: var(--acc); }
     copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    stop: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
     dots: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
     down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   };
 
   let host = null, root = null, ctx = null, stop = null;
+  // While an answer or follow-up is being written: stop is its abort, onUserStop what the Stop button does after it.
+  let onUserStop = null;
+  function setWriting(abortFn, onStopped) {
+    stop = abortFn || null; onUserStop = abortFn ? onStopped || null : null;
+    const b = root && root.querySelector(".stopbtn"); if (b) b.hidden = !abortFn;
+  }
+  function userStop() { const a = stop, f = onUserStop; setWriting(null); if (a) a(); if (f) f(); }
   // Keyboard in the panels: Tab stays inside an open panel, and closing it puts focus back where it was.
   function trapTab(box, e) {
     if (e.key !== "Tab") return;
@@ -724,7 +735,7 @@ button.btn:hover { border-color: var(--acc); }
     }).observe(document.documentElement, { childList: true, subtree: true });
   }
   const wrapEl = () => root.querySelector(".wrap");
-  function clear() { if (stop) { stop(); stop = null; } if (root) wrapEl().textContent = ""; if (host) { host.style.visibility = ""; host.style.height = ""; } }
+  function clear() { if (stop) { const a = stop; setWriting(null); a(); } if (root) wrapEl().textContent = ""; if (host) { host.style.visibility = ""; host.style.height = ""; } }
   function hide() { clear(); if (host) host.style.display = "none"; }
   function show() { if (host) host.style.display = ""; }
 
@@ -772,6 +783,7 @@ button.btn:hover { border-color: var(--acc); }
       '<section class="ov busy" aria-label="Instant Answer">' +
       '<div class="head">' + ICON.spark.replace("<svg", '<svg class="spark"') + '<span class="title">Instant Answer</span><span class="meta"></span>' +
       '<div class="right"><button class="stack" type="button" aria-expanded="false" hidden></button>' +
+      '<button class="icon stopbtn" type="button" title="Stop writing" hidden>' + ICON.stop + "<span>Stop</span></button>" +
       '<button class="icon conv-open" type="button" title="Continue as a conversation" aria-label="Continue as a conversation" hidden>' + CONV_ICON.expand + "</button>" +
       '<div class="menu-wrap"><button class="icon dots" type="button" title="More options" aria-label="More options" aria-haspopup="menu" aria-expanded="false">' + ICON.dots + "</button>" +
       '<div class="menu" role="menu" hidden>' +
@@ -790,6 +802,7 @@ button.btn:hover { border-color: var(--acc); }
       "</section>";
     setMeta();
     const dots = root.querySelector(".dots"), menu = root.querySelector(".menu");
+    root.querySelector(".stopbtn").addEventListener("click", userStop);
     dots.addEventListener("click", () => {
       if (!menu.hidden) return closeMenu();
       menu.hidden = false; dots.setAttribute("aria-expanded", "true");
@@ -895,7 +908,9 @@ button.btn:hover { border-color: var(--acc); }
       nourl: ["<b>Add the address of your AI service</b> in settings.", "gear"],
       model: ["<b>That model isn't available here.</b> Pick another one in settings.", "gear"],
       locked: ["<b>Your keys are locked.</b> Type your passphrase to unlock them.", "unlock"],
-    }[kind] || ["<b>Something went wrong:</b> " + esc(String(kind)), "retry"];
+      empty: ["<b>The answer came back empty.</b> Try again, or pick another model in settings.", "retry"],
+    }[kind] || (/^rate/.test(kind) ? ["<b>" + esc(P.label) + " is busy or you've reached its limit.</b> " + (/\d/.test(kind) ? "Try again in " + kind.replace(/\D/g, "") + " seconds." : "Try again in a moment."), "retry"]
+      : ["<b>Something went wrong:</b> " + esc(String(kind)), "retry"]);
   }
   function showError(kind, retry, prov) {
     const body = root.querySelector(".body");
@@ -967,15 +982,24 @@ button.btn:hover { border-color: var(--acc); }
       body.innerHTML = render(t, results);
       clampBody(false);
     };
-    stop = streamChat(prov, messages, (text) => {
+    // Stop: keep what was written so far (not saved), or offer to ask again when nothing had come yet
+    const stopped = () => {
+      if (frame) { cancelAnimationFrame(frame); frame = 0; }
+      reveal();
+      const t = cleanAnswer(latest).trim();
+      if (!t || maybeSkip(t)) return chipRow("Ask AI", "Stopped before the answer.", () => run(query, results, { force: true }));
+      ctx.turns = [{ role: "user", content: resultsBlock(query, results) }, { role: "assistant", content: t }];
+      finishAnswer(t, false); setMeta("stopped");
+    };
+    setWriting(streamChat(prov, messages, (text) => {
       latest = text;
       if (!frame) frame = requestAnimationFrame(paint);
     }, (text) => {
-      stop = null;
+      setWriting(null);
       if (frame) { cancelAnimationFrame(frame); frame = 0; }
       const t = cleanAnswer(text).trim();
       if (!isSkip(t)) reveal(); else clearTimeout(revealTimer);
-      if (!t) return showError("Empty answer. Try again or pick another model.", () => run(query, results, opts), prov);
+      if (!t) return showError("empty", () => run(query, results, opts), prov);
       if (isSkip(t)) {
         host.style.visibility = ""; host.style.height = "";
         return chipRow("Ask AI anyway", "No Instant Answer for this search.", () => run(query, results, { force: true }));
@@ -984,9 +1008,9 @@ button.btn:hover { border-color: var(--acc); }
       cachePut(key, t);
       finishAnswer(t, false);
     }, (err) => {
-      stop = null; reveal();
+      setWriting(null); reveal();
       showError(err, () => run(query, results, opts), prov);
-    }, (model) => { ctx.model = model; setMeta(); }, "answer", query);
+    }, (model) => { ctx.model = model; setMeta(); }, "answer", query), stopped);
   }
 
   function addTurn(question) {
@@ -1014,11 +1038,19 @@ button.btn:hover { border-color: var(--acc); }
     msgs.push({ role: "user", content: question });
     let frame = 0;
     const paintSoon = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; paint(); }); };
+    const record = () => { ctx.turns.push({ role: "user", content: question }, { role: "assistant", content: turn.a }); ctx.followups.push({ q: question, a: turn.a, steps: turn.steps }); rememberFollowups(); };
+    // Stop: keep what was written so far
+    const stopped = () => {
+      if (frame) { cancelAnimationFrame(frame); frame = 0; }
+      settled();
+      a.innerHTML = (turn.steps.length ? stepsHTML(turn.steps) : "") + (turn.a ? render(turn.a, ctx.sources) : "") + '<p class="err">Stopped.</p>';
+      if (turn.a) record();
+    };
     try {
       for (let step = 0; step < 8; step++) {
         const allowTools = S.tools && step < 7;
         const c = chat(ctx.prov, msgs, { task: "chat", hint: question, tools: allowTools ? TOOLS : null, onText: (t) => { turn.a = cleanAnswer(t); paintSoon(); }, onModel: (m) => { ctx.model = m; setMeta(); } });
-        stop = c.abort;
+        setWriting(c.abort, stopped);
         const r = await c.promise;
         if (allowTools && r.toolCalls.length) {
           msgs.push({ role: "assistant", content: r.text || "", tool_calls: r.toolCalls.map((tc) => ({ id: tc.id, type: "function", function: { name: tc.name, arguments: tc.args || "{}" } })) });
@@ -1029,19 +1061,17 @@ button.btn:hover { border-color: var(--acc); }
         break;
       }
     } catch (e) {
-      stop = null;
+      if (e.message === "aborted") return;                 // the Stop button (or a new search) handled it
+      setWriting(null);
       settled();
-      if (e.message === "aborted") return;
       a.innerHTML = (turn.steps.length ? stepsHTML(turn.steps) : "") + '<p class="err"><b>Follow-up failed</b> (' + esc(errMsg(e.message, ctx.prov)[0].replace(/<[^>]+>/g, "")) + ").</p>";
       return;
     }
-    stop = null; if (frame) { cancelAnimationFrame(frame); frame = 0; }
+    setWriting(null); if (frame) { cancelAnimationFrame(frame); frame = 0; }
     settled();
     if (!turn.a) { a.innerHTML = '<p class="err">No answer.</p>'; return; }
     paint(true);
-    ctx.turns.push({ role: "user", content: question }, { role: "assistant", content: turn.a });
-    ctx.followups.push({ q: question, a: turn.a, steps: turn.steps });
-    rememberFollowups();
+    record();
   }
 
   // ---------------------------------------------------------------- follow-ups kept for a while (this tab only)
@@ -1175,7 +1205,7 @@ button.btn:hover { border-color: var(--acc); }
           if (r.status >= 400) return reject(new Error("HTTP " + r.status));
           const doc = new DOMParser().parseFromString(r.responseText || "", "text/html");
           const list = getResults(6, doc).map(plainSource);
-          if (!list.length && /verif|captcha|unusual/i.test(r.responseText || "")) return reject(new Error("Startpage asked for a check"));
+          if (!list.length && /verif|captcha|unusual/i.test(r.responseText || "")) return reject(new Error("Startpage wants a check first: search once on startpage.com, then try again"));
           resolve(list);
         },
         onerror: () => reject(new Error("offline")), ontimeout: () => reject(new Error("slow")),
@@ -1274,6 +1304,7 @@ button.btn:hover { border-color: var(--acc); }
       '<button class="icon" type="button" data-c="list" title="Kept conversations" aria-label="Kept conversations">' + CONV_ICON.list + "</button>" +
       '<button class="icon" type="button" data-c="download" title="Download as a Markdown file" aria-label="Download as a Markdown file">' + CONV_ICON.download + "</button>" +
       '<button class="icon" type="button" data-c="save" title="Keep this conversation" aria-label="Keep this conversation" aria-pressed="false">' + CONV_ICON.save + "</button>" +
+      '<button class="icon stopbtn" type="button" data-c="stop" title="Stop writing" hidden>' + ICON.stop + "<span>Stop</span></button>" +
       '<button class="icon" type="button" data-c="close" title="Close" aria-label="Close">' + ICON.close + "</button></div></div>" +
       '<div class="scroll" aria-live="polite"></div>' +
       '<form><textarea rows="1" placeholder="Ask anything…" aria-label="Your message"></textarea><button class="icon" type="submit" title="Send" aria-label="Send">' + ICON.send + "</button></form>" +
@@ -1289,6 +1320,7 @@ button.btn:hover { border-color: var(--acc); }
       const b = e.target.closest("[data-c]"); if (!b) return;
       const act = b.dataset.c;
       if (act === "close") closeConversation();
+      else if (act === "stop") { if (conv.abort) conv.abort(); }
       else if (act === "save") { if (conv.saved) { forgetChat(conv.id); conv.saved = false; } else storeChat(); paintConvHead(); }
       else if (act === "download") downloadConversation();
       else if (act === "list") showKept();
@@ -1307,6 +1339,7 @@ button.btn:hover { border-color: var(--acc); }
     focusBack(convBack); convBack = null;
   }
   function paintConvHead() {
+    convRoot.querySelector('[data-c="stop"]').hidden = !conv.busy;
     const b = convRoot.querySelector('[data-c="save"]');
     b.classList.toggle("on", !!conv.saved); b.setAttribute("aria-pressed", String(!!conv.saved));
     b.title = conv.saved ? "Kept in this browser. Click to stop keeping it." : "Keep this conversation";
@@ -1328,7 +1361,7 @@ button.btn:hover { border-color: var(--acc); }
   function addStep(turn, text) { turn.steps.push(text); if (convRoot) paintConv(); }
   async function converse(question) {
     const turn = { q: question, a: "", steps: [], searches: 0, pages: 0, status: "" };
-    conv.view.push(turn); conv.busy = true; paintConv();
+    conv.view.push(turn); conv.busy = true; paintConv(); paintConvHead();
     const history = [];
     conv.view.slice(0, -1).forEach((t) => { if (t.a) history.push({ role: "user", content: t.q }, { role: "assistant", content: t.a }); });
     await presearch(conv.prov, turn, { sources: conv.sources, step: (t) => addStep(turn, t) }, history, question);
@@ -1357,9 +1390,10 @@ button.btn:hover { border-color: var(--acc); }
         break;
       }
     } catch (e) {
-      if (e.message === "aborted") return;
-      turn.a = ""; turn.status = "";
-      turn.steps.push("Failed: " + (errMsg(e.message, conv.prov)[0].replace(/<[^>]+>/g, "")));
+      if (!convRoot) return;                               // closed
+      if (e.message === "aborted") turn.steps.push("Stopped");    // the Stop button: keep what was written
+      else { turn.a = ""; turn.steps.push("Failed: " + (errMsg(e.message, conv.prov)[0].replace(/<[^>]+>/g, ""))); }
+      turn.status = "";
     }
     if (!convRoot) return;
     turn.status = ""; conv.busy = false; conv.abort = null;
