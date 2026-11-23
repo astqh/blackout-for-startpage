@@ -3,6 +3,68 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.7.0 · 23 November 2026 (SearXNG)
+
+Instant Answer made faster, clearer and sturdier. Tested in Chromium with the scripts loaded the way Violentmonkey
+loads them, on sample Startpage pages, a SearXNG running on the test machine and the public instance priv.au, against
+a local stand-in AI that streams its replies, can fail on purpose and counts every request. Not yet tested with a real
+AI service or on startpage.com itself.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.2 |
+| Blackout theme for SearXNG | 1.0.1 |
+| Tweaks | 1.2.1 |
+| Home widgets | 1.3.0 |
+| Instant Answer | 2.7.0 |
+| F1 card | 1.4.0 |
+| Quick answers | 1.3.1 |
+
+Speed (measured with the stand-in, before → after):
+
+- On SearXNG without the Blackout theme, the Instant Answer, quick-answer and F1 boxes sat against the left edge;
+  they now line up with the text of the results at any width (and the theme no longer sets a fixed margin for them,
+  which was 6 px off on phones).
+- On SearXNG, Instant Answer no longer waits 0.4 s before starting, since SearXNG's own answers are part of the page
+  from the start: the first words come about 610 ms → 225 ms after the page has loaded.
+- A saved answer shows at once when you search again (about 480 ms → 80 ms), and also while your keys are locked,
+  since it needs no key.
+- A follow-up the results already cover no longer asks the AI to turn it into a search first: 2 requests → 1, about
+  280 ms → 170 ms to the first words. Follow-ups that say "it", "that" or "and what about…" still get their own search.
+- With a model app on your computer and no model picked, its model list is asked once a minute instead of before
+  every request (a follow-up: 4 requests → 2, a summary: 2 → 1).
+
+Answer quality (only changes that clearly help):
+
+- The short answer and page summaries tell the AI that text from results and pages is information, never
+  instructions, as conversations already did. A page can't steer the answer by writing orders into its text.
+- The follow-up search knows today's date, so "what about this year" searches for the year itself.
+- A follow-up that already stands on its own keeps its words as the search, instead of being reworded.
+- Reviewed and kept as they are: when it answers by itself or shows Ask AI, the SKIP rule, and which results are sent
+  (the top 8, without hidden sites or Startpage's trap link, descriptions cut at 320 characters).
+
+Interface (checked at 1600 and 400 pixels wide, with the Blackout theme and on a light page without it):
+
+- Every field in Instant Answer's settings has a label that screen readers announce.
+- A finished answer or follow-up is read out once by screen readers, not word by word as it is written.
+- Tab stays inside the settings and conversation panels while they are open, and closing them puts the focus back
+  where it was, also when they were opened from the ⋯ menu.
+- Small grey text is easier to read: the Blackout themes' grey is a little lighter, on Startpage and SearXNG (contrast 3.9 → 5.4), and on light
+  pages without the theme, Instant Answer, quick answers and the ⋮ menu use darker greys and a darker accent so text
+  and buttons reach a contrast of 4.5. The speed test's upload colour is darker on light pages.
+
+Reliability (each failure tried with the stand-in):
+
+- A **Stop** button shows while the answer, a follow-up or a conversation reply is being written. It keeps the words
+  so far (marked "stopped", not saved); stopped before any words, it offers Ask AI again.
+- A stopped conversation reply no longer leaves the panel stuck: the next message is answered.
+- When the AI service is busy or you've reached its limit (429), it says so, with the wait the service asks for, and
+  doesn't retry by itself.
+- An empty reply says so in plain words instead of "Something went wrong".
+- When Startpage asks for its "verify" check during the AI's own search, the step says to search once on
+  startpage.com, and the answer still comes from what it has.
+- Checked and unchanged: offline, a refused key, a slow service (3 s to the first words) and no reply at all (it gives
+  up after 90 s with "The answer took too long").
 ## 1.6.0 · 17 October 2026 (SearXNG)
 
 Works on SearXNG as well as Startpage. Tested on SearXNG as it was on 16 October 2026 (its standard "simple" theme)

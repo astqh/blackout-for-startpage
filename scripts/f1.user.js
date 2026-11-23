@@ -473,6 +473,13 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
     return !name || name === "general" ? "web" : name;
   }
 
+  // SearXNG without the Blackout theme: line the box up with the text of the results (they have their own padding)
+  function alignToResults(el) {
+    const r = document.querySelector("#urls > .result, #urls > [class*='template_group_'] > .result"), u = document.querySelector("#urls");
+    if (SP || !el || !r || !u) return;
+    const cs = getComputedStyle(r), x = Math.max(0, Math.round(r.getBoundingClientRect().left - u.getBoundingClientRect().left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth)));
+    el.style.marginLeft = el.style.marginRight = x + "px";
+  }
   let host = null, root = null;
   function mount() {
     if (host && host.isConnected) return true;
@@ -483,15 +490,16 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
     const card = document.createElement("section"); card.className = "card"; card.setAttribute("aria-label", "Formula 1");
     root.append(st, card);
     place();
+    if (!SP) window.addEventListener("resize", () => alignToResults(host));
     new MutationObserver(() => { if (host && !host.isConnected) requestAnimationFrame(place); }).observe(document.documentElement, { childList: true, subtree: true });
     return true;
   }
   function place() {
     if (!host || host.isConnected) return;
     const ai = document.getElementById("sp-instant-answer");                // sit above the Instant Answer when both show
-    if (ai && ai.isConnected) { ai.parentNode.insertBefore(host, ai); return; }
+    if (ai && ai.isConnected) { ai.parentNode.insertBefore(host, ai); alignToResults(host); return; }
     const at = resultsSlot();
-    if (at) at[0].insertBefore(host, at[1]);
+    if (at) { at[0].insertBefore(host, at[1]); alignToResults(host); }
   }
   const card = () => root.querySelector(".card");
   function remove() { if (host) { host.remove(); host = null; } }

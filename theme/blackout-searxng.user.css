@@ -1,7 +1,7 @@
 /* ==UserStyle==
 @name         Blackout for SearXNG
 @namespace    blackout-for-startpage/searxng
-@version      1.0.0
+@version      1.0.1
 @license      MIT
 @homepageURL  https://github.com/astqh/blackout-for-startpage
 @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -28,7 +28,7 @@ html:has(> head > meta[name="generator"][content^="searx" i]) {
   /* ---------- Blackout: the same --sp-* tokens as the Startpage theme, so every script's boxes match ---------- */
   --sp-bg: #000000; --sp-surface: #0b0b0d; --sp-surface-2: #141417; --sp-field: #0b0b0d;
   --sp-line: #1a1a1e; --sp-line-strong: #2a2a30;
-  --sp-ink: #e6e6e9; --sp-ink-2: #a5a5ad; --sp-muted: #6e6e77;
+  --sp-ink: #e6e6e9; --sp-ink-2: #a5a5ad; --sp-muted: #85858f;
   --sp-link: var(--accent, #a3c4ff); --sp-accent: var(--accent, #a3c4ff);
   --sp-visited: color-mix(in oklab, var(--accent, #a3c4ff) 62%, #6b6b78);
   --sp-select: color-mix(in srgb, var(--accent, #a3c4ff) 28%, transparent);
@@ -153,8 +153,6 @@ html:has(> head > meta[name="generator"][content^="searx" i]) {
   & #pagination button:hover, & #pagination input[type="submit"]:hover { border-color: var(--sp-accent) !important; color: var(--sp-ink) !important; }
   & #pagination .page_number_current { border-color: var(--sp-accent) !important; color: var(--sp-ink) !important; }
 
-  /* ---------- this project's boxes above the results (Instant Answer, F1, quick answers) line up with the results ---------- */
-  & #urls > [id^="sp-"] { margin-left: 1.2rem !important; margin-right: 1rem !important; }
 
   /* ---------- links on top, footer, preferences ---------- */
   & #links_on_top a, & #links_on_top a span { color: var(--sp-muted) !important; }

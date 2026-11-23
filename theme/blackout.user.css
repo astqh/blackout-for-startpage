@@ -1,7 +1,7 @@
 /* ==UserStyle==
 @name         Blackout for Startpage
 @namespace    blackout-for-startpage
-@version      1.2.1
+@version      1.2.2
 @license      MIT
 @homepageURL  https://github.com/astqh/blackout-for-startpage
 @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -25,7 +25,7 @@
   :root {
     --sp-bg: #000000; --sp-surface: #0b0b0d; --sp-surface-2: #141417; --sp-field: #0b0b0d;
     --sp-line: #1a1a1e; --sp-line-strong: #2a2a30;
-    --sp-ink: #e6e6e9; --sp-ink-2: #a5a5ad; --sp-muted: #6e6e77;
+    --sp-ink: #e6e6e9; --sp-ink-2: #a5a5ad; --sp-muted: #85858f;
     --sp-link: var(--accent, #a3c4ff); --sp-accent: var(--accent, #a3c4ff);
     --sp-visited: color-mix(in oklab, var(--accent, #a3c4ff) 62%, #6b6b78);
     --sp-select: color-mix(in srgb, var(--accent, #a3c4ff) 28%, transparent);
