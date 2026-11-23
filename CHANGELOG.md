@@ -3,6 +3,30 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.6.0 · 23 November 2026
+
+Instant Answer made faster, clearer and sturdier. Tested in Chromium with the scripts loaded the way Violentmonkey
+loads them, on sample Startpage pages, against a local stand-in AI that streams its replies, can fail on purpose and
+counts every request. Not yet tested with a real AI service or on startpage.com itself.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.1 |
+| Tweaks | 1.1.0 |
+| Home widgets | 1.2.0 |
+| Instant Answer | 2.6.0 |
+| F1 card | 1.3.2 |
+| Quick answers | 1.2.0 |
+
+Speed (measured with the stand-in, before → after):
+
+- A saved answer shows at once when you search again (about 480 ms → 80 ms), and also while your keys are locked,
+  since it needs no key.
+- A follow-up the results already cover no longer asks the AI to turn it into a search first: 2 requests → 1, about
+  280 ms → 170 ms to the first words. Follow-ups that say "it", "that" or "and what about…" still get their own search.
+- With a model app on your computer and no model picked, its model list is asked once a minute instead of before
+  every request (a follow-up: 4 requests → 2, a summary: 2 → 1).
+
 ## 1.5.0 · 17 October 2026
 
 Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on a sample Startpage page, with a local

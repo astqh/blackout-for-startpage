@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Instant Answer for Startpage
 // @namespace    blackout-for-startpage/instant-answer
-// @version      2.5.0
+// @version      2.6.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -286,10 +286,13 @@
       onload: handlers.load, onerror: handlers.error, ontimeout: handlers.timeout, onabort: handlers.abort,
     });
   }
-  // The service's model list, kept for 12 hours (per address).
+  // The service's model list, kept for 12 hours (per address). A local server's list says which model is loaded, so it
+  // is only kept for a minute, in this page: an answer and its follow-ups don't ask again each time.
+  let localList = null;
   function listModels(providerId, s, fresh) {
     const P = PROVIDERS[providerId], base = P.base(s), slot = base + "|" + (providerId === "cloud" ? s.cloudPreset : "local"), kept = GM_getValue("models", {})[slot];
     if (!fresh && kept && Date.now() - kept.at < 12 * 3600e3 && providerId !== "local") return Promise.resolve(kept.list);
+    if (!fresh && providerId === "local" && localList && localList.base === base && Date.now() - localList.at < 60e3) return Promise.resolve(localList.list);
     return new Promise((resolve, reject) => {
       if (!base) return reject(new Error("nourl"));
       request("GET", base + "/models", P.key(s), null, {
@@ -302,6 +305,7 @@
             const list = (j.data || j.models || []).map((m) => ({ id: String(m.id || m.name || "").replace(/^models\//, ""), loaded: m.status && (m.status.value || m.status) === "loaded", told: !!m.status }))
               .filter((m) => m.id && !NOT_CHAT.test(m.id) && (!pr.only || pr.only.test(m.id)) && !(pr.not && pr.not.test(m.id)));
             if (providerId !== "local") { const all = GM_getValue("models", {}); all[slot] = { at: Date.now(), list }; GM_setValue("models", all); }
+            else localList = { base, at: Date.now(), list };
             resolve(list);
           } catch (e) { reject(new Error("bad reply")); }
         },
@@ -906,10 +910,8 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     boxSkeleton();
     const body = root.querySelector(".body");
     linkHover(root.querySelector(".ov"));
-    if (lockedFor(prov) && !(prov === "local" ? S.localKey : S.cloudKey)) return showError("locked", () => run(query, results, opts), prov);
-    if (prov === "cloud" && !ready("cloud")) return showError(S.cloudKey ? "nourl" : "nokey", () => run(query, results, opts), prov);
     const key = cacheKey(prov, query, results);
-    const hit = !opts.fresh && cacheGet(key);
+    const hit = !opts.fresh && cacheGet(key);                    // a saved answer needs no key, so it shows even when locked
     const finishAnswer = (text, fromCache) => {
       ctx.answer = text; ctx.done = true; ctx.cached = fromCache;
       root.querySelector(".ov").classList.remove("busy");
@@ -929,6 +931,8 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       }
     };
     if (hit) return finishAnswer(hit.text, true);
+    if (lockedFor(prov) && !(prov === "local" ? S.localKey : S.cloudKey)) return showError("locked", () => run(query, results, opts), prov);
+    if (prov === "cloud" && !ready("cloud")) return showError(S.cloudKey ? "nourl" : "nokey", () => run(query, results, opts), prov);
     const messages = [{ role: "system", content: systemPrompt(!opts.force) }, { role: "user", content: resultsBlock(query, results) }];
     // Quiet start: an automatic answer only shows its box once real text arrives (or after 0.7 s),
     // so a search the AI skips never flashes a box.
@@ -1108,9 +1112,19 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       return !q || /^none$/i.test(q) ? "" : q;
     } catch (e) { return ""; }
   }
+  // A follow-up that stands on its own and whose words the sources already contain needs no rewritten search first
+  // (the AI can still search if it must). Words like "it" or "and what about…" need the conversation, so they don't.
+  const REFERS = /^(and|or|but|so|also|then|what about|how about)\b|\b(it|its|they|them|their|this|that|these|those|he|she|him|his|her|there|one|ones|same|other|else)\b/i;
+  function covered(question, sources) {
+    if (REFERS.test(question.trim())) return false;
+    const terms = termsOf(question);
+    if (!terms.length) return false;
+    const text = sources.map((r) => r.title + " " + (r.snippet || "")).join(" ").toLowerCase();
+    return terms.filter((w) => text.includes(w)).length / terms.length >= 0.75;
+  }
   // Before the AI answers a follow-up or conversation turn: search once with the rewritten question.
   async function presearch(prov, turn, work, history, question) {
-    if (!S.tools || !depth().pre) return;
+    if (!S.tools || !depth().pre || covered(question, work.sources)) return;
     const q = await rewriteQuery(prov, history, question, work.sources);
     if (!q) return;
     turn.searches++; (turn.queries = turn.queries || []).push(q); work.step("Searched Startpage for “" + q + "”");
@@ -1725,8 +1739,10 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
 
   // Start once the page has finished loading (Startpage re-renders while loading), and the results are there.
   let tries = 0;
-  // Startpage draws its own answer boxes a moment after the results; give them 0.4 s before deciding.
-  const wait = () => { if ($(".w-gl .result") || tries++ > 40) setTimeout(() => resume().finally(() => start(false)), 400); else setTimeout(wait, 100); };
+  // Startpage draws its own answer boxes a moment after the results; give them 0.4 s before deciding. A search answered
+  // before (saved answer) shows at once: it was decided then, and nothing is sent.
+  const saved = () => { if (S.enabled !== true) return false; const q = getQuery(); return !!q && !!cacheGet(cacheKey(S.provider, q, getResults(8))); };
+  const wait = () => { if ($(".w-gl .result") || tries++ > 40) setTimeout(() => resume().finally(() => start(false)), saved() ? 0 : 400); else setTimeout(wait, 100); };
   if (document.readyState === "complete") setTimeout(wait, 50);
   else window.addEventListener("load", () => setTimeout(wait, 50), { once: true });
 })();
