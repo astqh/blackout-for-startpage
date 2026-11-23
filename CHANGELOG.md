@@ -27,6 +27,15 @@ Speed (measured with the stand-in, before → after):
 - With a model app on your computer and no model picked, its model list is asked once a minute instead of before
   every request (a follow-up: 4 requests → 2, a summary: 2 → 1).
 
+Answer quality (only changes that clearly help):
+
+- The short answer and page summaries tell the AI that text from results and pages is information, never
+  instructions, as conversations already did. A page can't steer the answer by writing orders into its text.
+- The follow-up search knows today's date, so "what about this year" searches for the year itself.
+- A follow-up that already stands on its own keeps its words as the search, instead of being reworded.
+- Reviewed and kept as they are: when it answers by itself or shows Ask AI, the SKIP rule, and which results are sent
+  (the top 8, without hidden sites or Startpage's trap link, descriptions cut at 320 characters).
+
 ## 1.5.0 · 17 October 2026
 
 Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on a sample Startpage page, with a local
