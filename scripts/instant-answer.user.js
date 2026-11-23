@@ -695,10 +695,14 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
 
   let host = null, root = null, ctx = null, stop = null;
 
-  // Above the web results: before Startpage's list, or at the top of SearXNG's (its results page is a grid)
+  // Above the web results: before Startpage's list, or at the top of SearXNG's (its results page is a grid), below
+  // the F1 and quick-answer cards as on Startpage
   function resultsSlot() {
     if (SP) { const l = $(".w-gl"); return l && l.parentNode ? [l.parentNode, l] : null; }
-    const u = $("#urls"); return u ? [u, u.firstChild] : null;
+    const u = $("#urls"); if (!u) return null;
+    let n = u.firstChild;
+    while (n && /^sp-(f1|quick)-widget$/.test(n.id || "")) n = n.nextSibling;
+    return [u, n];
   }
   function mount() {
     if (host && host.isConnected) return true;

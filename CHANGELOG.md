@@ -3,7 +3,7 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
-## 1.5.0 · 16 October 2026
+## 1.6.0 · 17 October 2026 (SearXNG)
 
 Works on SearXNG as well as Startpage. Tested on SearXNG as it was on 16 October 2026 (its standard "simple" theme)
 running on this computer, in Chromium, with the scripts loaded the way Violentmonkey loads them and a stand-in AI:
@@ -19,7 +19,7 @@ video results, and the images tab. Startpage checked again on sample pages. Not 
 | Home widgets | 1.3.0 |
 | Instant Answer | 2.6.0 |
 | F1 card | 1.4.0 |
-| Quick answers | 1.2.0 |
+| Quick answers | 1.3.0 |
 
 - New: **Blackout for SearXNG**, the black theme for any SearXNG instance. It only changes pages that say they are
   SearXNG.
@@ -27,11 +27,32 @@ video results, and the images tab. Startpage checked again on sample pages. Not 
 - Instant Answer works only on the SearXNG instances you turn it on for, and its searches go to that instance.
 - On SearXNG the ⋮ menu opens the archived copy (or the proxy) instead of Anonymous View, and the translator shortcut is off.
 - On SearXNG the keys from Tweaks come before SearXNG's own keys with the same letters.
+- The speed test from 1.5.0, with its speedometer, works on SearXNG too. Instant Answer sits below the quick-answer
+  and F1 cards there, as on Startpage.
 
 SearXNG page parts the scripts rely on: `<meta name="generator" content="searxng/…">`, `<meta name="endpoint">`,
 `form#search`, `#q`, `#categories` (`.category_button.selected`), `article.result` in `#urls` or in its
-`div.template_group_*` groups, with `a.url_header`,
-`h3 a`, `p.content`, `a.cache_link`, `a.proxyfied_link`, and `#answers .answer`.
+`div.template_group_*` groups, with `a.url_header`, `h3 a`, `p.content`, `a.cache_link`, `a.proxyfied_link`, and
+`#answers .answer`.
+
+## 1.5.0 · 17 October 2026
+
+Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on a sample Startpage page, with a local
+stand-in for Cloudflare's speed test service (the real one couldn't be reached from the test machine). Not yet tested
+against speed.cloudflare.com itself.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.1 |
+| Tweaks | 1.1.0 |
+| Home widgets | 1.2.0 |
+| Instant Answer | 2.5.0 |
+| F1 card | 1.3.2 |
+| Quick answers | 1.2.0 |
+
+- Quick answers has an internet speed test for searches like `speed test` or `test my wifi`: download, upload, latency
+  and jitter, measured with Cloudflare's speed test service, with a speedometer you can turn off under ⚙. It starts
+  only when you click Start test.
 
 ## 1.4.0 · 12 October 2026
 

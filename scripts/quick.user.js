@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Quick answers for Startpage
 // @namespace    blackout-for-startpage/quick
-// @version      1.2.0
+// @version      1.3.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
 // @downloadURL  https://astqh.github.io/blackout-for-startpage/scripts/quick.user.js
 // @updateURL    https://astqh.github.io/blackout-for-startpage/scripts/quick.user.js
-// @description  Small answers above Startpage results. A timer for searches like 5 minute timer, parcel tracking links, colour previews, coin flip, dice, random numbers, currency for searches Startpage's converter skips, and a shortcut to Startpage's translator. Each one can be turned off. Also works on SearXNG.
+// @description  Small answers above Startpage results. A timer for searches like 5 minute timer, parcel tracking links, colour previews, coin flip, dice, random numbers, currency for searches Startpage's converter skips, an internet speed test, and a shortcut to Startpage's translator. Each one can be turned off. Also works on SearXNG.
 // @match        https://*.startpage.com/sp/search*
 // @match        https://*.startpage.com/do/search*
 // @match        https://*.startpage.com/do/dsearch*
@@ -18,14 +18,17 @@
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
 // @connect      api.frankfurter.dev
+// @connect      speed.cloudflare.com
 // @run-at       document-end
 // @noframes
 // ==/UserScript==
 
 /*
- * Everything works on the page itself, with one exception: the currency card asks Frankfurter (free, open source,
+ * Everything works on the page itself, with two exceptions: the currency card asks Frankfurter (free, open source,
  * European Central Bank rates) for the day's exchange rates. That request carries no search words and is cached
- * for 6 hours. Parcel buttons are plain links; nothing goes to a carrier until you click one.
+ * for 6 hours. The speed test, only after you click Start, sends test data to and from Cloudflare's speed test
+ * (speed.cloudflare.com); no search words, no cookies. Parcel buttons are plain links; nothing goes to a carrier
+ * until you click one.
  * When Startpage shows its own answer (its currency converter, its timer), the matching card here stays hidden.
  * Options: ⚙ on any card, or the Violentmonkey icon → "Quick answers on/off".
  * SearXNG: the same cards above the results of any SearXNG instance, except the translator shortcut (that is
@@ -46,7 +49,7 @@
   const EURO = "AT BE HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES".split(" ");
   const localCurrency = () => ({ CA: "CAD", US: "USD", GB: "GBP", AU: "AUD", NZ: "NZD", JP: "JPY", CH: "CHF", IN: "INR", SE: "SEK", NO: "NOK", DK: "DKK",
     PL: "PLN", CZ: "CZK", HU: "HUF", BR: "BRL", MX: "MXN", ZA: "ZAR", SG: "SGD", HK: "HKD", KR: "KRW", CN: "CNY", TR: "TRY", IL: "ILS" }[REGION] || (EURO.includes(REGION) ? "EUR" : "USD"));
-  const DEFAULTS = { enabled: true, timer: true, sound: true, parcel: true, colour: true, random: true, currency: true, translate: true, translateAuto: true, home: localCurrency() };
+  const DEFAULTS = { enabled: true, timer: true, sound: true, parcel: true, colour: true, random: true, currency: true, speed: true, gauge: true, translate: true, translateAuto: true, home: localCurrency() };
   const settings = () => Object.assign({}, DEFAULTS, GM_getValue("settings", {}));
   const saveSettings = (s) => GM_setValue("settings", s);
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -150,6 +153,14 @@
     m = t.match(/^(?:(?:generate|get|give me) )?(?:a )?(?:random number(?: generator)?|random integer|rng|number generator|pick a (?:random )?number)(?: (?:between|from))? ?(-?\d+)?(?: ?(?:and|to|-|,) ?(-?\d+))?$/);
     if (m) { let lo = m[1] != null ? +m[1] : 1, hi = m[2] != null ? +m[2] : (m[1] != null ? +m[1] : 10); if (m[1] != null && m[2] == null) lo = 1; if (lo > hi) [lo, hi] = [hi, lo]; return { type: "random", kind: "number", lo, hi }; }
     return null;
+  }
+
+  // Speed test: "speed test", "internet speed test", "test my wifi", "how fast is my internet".
+  function speedTest(t) {
+    const ok = /^((internet|wifi|wi-fi|network|broadband|connection|bandwidth|download|upload|net) )?speed ?test( online)?$/.test(t) ||
+      /^(run (a )?)?speedtest$|^(test|check|measure) (my )?(internet|wifi|wi-fi|connection|network|bandwidth|download speed|upload speed)( speed)?$/.test(t) ||
+      /^(how fast is|what is|whats|what's) my (internet|wifi|wi-fi|connection|network)( speed)?\??$|^(my )?(internet|wifi|wi-fi|connection) speed$/.test(t);
+    return ok ? { type: "speed" } : null;
   }
 
   // Timer: "5 minute timer", "timer 1h30m", "set a timer for 10 minutes", "timer 1:30", "pomodoro".
@@ -259,9 +270,9 @@
   function detect(raw) {
     const t = raw.toLowerCase().replace(/\s+/g, " ").trim(), s = settings();
     if (!t || t.split(" ").length > 9) return null;
-    const hit = parcel(raw, t) || colour(t) || random(t) || timer(t) || currency(t) || translation(raw);
+    const hit = parcel(raw, t) || colour(t) || random(t) || speedTest(t) || timer(t) || currency(t) || translation(raw);
     if (!hit) return null;
-    const on = { parcel: s.parcel, colour: s.colour, random: s.random, timer: s.timer, currency: s.currency, translate: s.translate }[hit.type];
+    const on = { parcel: s.parcel, colour: s.colour, random: s.random, timer: s.timer, currency: s.currency, speed: s.speed, translate: s.translate }[hit.type];
     if (!on) return null;
     if ((hit.type === "timer" || hit.type === "currency") && startpageAnswered()) return null;
     return hit;
@@ -322,6 +333,34 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
 .side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 6px; }
 .side input { width: 100%; }
 .conv .swap { grid-row: 1 / span 2; grid-column: 2; }
+/* speed test */
+.sgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 12px 18px; margin: 4px 0 12px; }
+.stat b { display: block; font: 600 11px var(--sp-font, sans-serif); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-muted, inherit); }
+.stat .v { font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -.01em; }
+.stat .u { font-size: 13px; font-weight: 400; color: var(--sp-ink-2, inherit); margin-left: 4px; }
+.stat.small .v { font-size: 20px; }
+.stat.now .v { color: var(--sp-accent, #6677fb); }
+.sline { margin-bottom: 12px; }
+.sbox { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 8px 22px; align-items: center; margin-bottom: 8px; }
+.sbox .sgrid { grid-template-columns: repeat(2, minmax(110px, max-content)); gap: 14px 44px; margin: 0; }
+.gauge { position: relative; width: 230px; }
+.gauge svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gtrack, .gfill { fill: none; stroke-width: 12; stroke-linecap: round; }
+.gtrack { stroke: var(--sp-surface-2, rgba(127,127,127,.18)); }
+.gfill { stroke: var(--gc, var(--sp-accent, #6677fb)); transition: stroke-dasharray .3s ease-out; }
+.gtick { font: 600 9.5px var(--sp-font, sans-serif); fill: var(--sp-muted, rgba(127,127,127,.9)); text-anchor: middle; dominant-baseline: middle; }
+.needle { stroke: var(--sp-ink, currentColor); stroke-width: 3; stroke-linecap: round; transform-origin: 100px 100px; transition: transform .3s ease-out; }
+.hub { fill: var(--sp-ink, currentColor); }
+.gread { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; line-height: 1.15; }
+.gread .gv { font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
+.gread .gu { font-size: 12px; color: var(--sp-ink-2, inherit); margin-left: 3px; }
+.gread .gl { display: block; font: 600 11px var(--sp-font, sans-serif); letter-spacing: .06em; text-transform: uppercase; color: var(--gc, var(--sp-muted, inherit)); }
+.gauge.up { --gc: #4fd1a5; }
+.stat.now.upv .v { color: #4fd1a5; }
+.nogauge .gauge { display: none; }
+.nogauge .sbox { grid-template-columns: minmax(0, 1fr); }
+.nogauge .sbox .sgrid { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); margin: 4px 0 12px; }
+@container (max-width: 520px) { .sbox { grid-template-columns: minmax(0, 1fr); justify-items: center; } .sbox .sgrid { width: 100%; } }
 /* options */
 .opts { display: grid; gap: 9px; padding: 10px 16px 12px; border-top: 1px solid var(--sp-line, rgba(127,127,127,.2)); border-bottom: 1px solid var(--sp-line, rgba(127,127,127,.2)); font-size: 13px; color: var(--sp-ink-2, inherit); }
 .opts label, .opts .orow { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -343,6 +382,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     currency: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>',
     translate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h10M8 3v2M5 5c.6 3.4 2.8 6.2 6 7.6M11 5c-.5 3.6-2.6 6.6-7 8.6"/><path d="m12 21 4.5-10 4.5 10M13.6 17.5h5.8"/></svg>',
     copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+    speed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 18a9 9 0 1 1 15 0"/><path d="m12 13 4-5"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></svg>',
     swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>',
   };
 
@@ -373,7 +413,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
   let cleanup = null;
   function remove() { if (cleanup) { cleanup(); cleanup = null; } if (host) { host.remove(); host = null; } }
 
-  const TITLES = { timer: "Timer", parcel: "Track a parcel", colour: "Colour", currency: "Currency", random: "Random", translate: "Translate" };
+  const TITLES = { timer: "Timer", parcel: "Track a parcel", colour: "Colour", currency: "Currency", random: "Random", speed: "Internet speed", translate: "Translate" };
   function shell(hit, title) {
     if (cleanup) { cleanup(); cleanup = null; }
     card().classList.remove("done");
@@ -391,7 +431,8 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
   function wireOptions() {
     const btn = root.querySelector(".gear"), box = root.querySelector(".opts"), s = settings();
     box.innerHTML = [["timer", "Timer (“5 minute timer”)"], ["sound", "Alarm sound when a timer ends"], ["parcel", "Parcel tracking buttons"], ["colour", "Colour preview"],
-      ["random", "Coin flip, dice, random number"], ["currency", "Currency (when " + SITE + " has no converter)"]].concat(SP ? [
+      ["random", "Coin flip, dice, random number"], ["currency", "Currency (when " + SITE + " has no converter)"],
+      ["speed", "Internet speed test (runs only when you click Start)"], ["gauge", "…with a speedometer"]].concat(SP ? [
       ["translate", "Translation searches → Startpage's translator"], ["translateAuto", "…straight away when the search is clear (otherwise a button)"]] : []).map(([k, l]) =>
       '<label><span>' + l + '</span><input type="checkbox" data-opt="' + k + '"' + (s[k] ? " checked" : "") + "></label>").join("") +
       '<div class="orow"><span>Your currency (for “100 euros”)</span><select data-opt="home" aria-label="Your currency">' +
@@ -402,7 +443,8 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     btn.addEventListener("click", () => show(box.hidden));
     box.querySelectorAll("[data-opt]").forEach((el) => el.addEventListener("change", () => {
       const st = settings(); st[el.dataset.opt] = el.type === "checkbox" ? el.checked : el.value; saveSettings(st);
-      if (el.dataset.opt !== "sound") start(true);                  // re-read the search with the new options
+      if (el.dataset.opt === "gauge") card().classList.toggle("nogauge", !el.checked);   // at once, even mid-test
+      else if (el.dataset.opt !== "sound") start(true);                  // re-read the search with the new options
     }));
     box.querySelector(".offbtn").addEventListener("click", () => { const st = settings(); st.enabled = false; saveSettings(st); optsOpen = false; remove(); });
   }
@@ -528,6 +570,108 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     cleanup = () => { clearInterval(iv); stopAlarm(); document.removeEventListener("pointerdown", onGesture, true); document.removeEventListener("keydown", onGesture, true); };
   }
 
+  // Speed test: Cloudflare's speed test service, the one behind speed.cloudflare.com. Latency from small requests,
+  // then download and upload with growing sizes until one transfer takes over a second, then a few more of that size;
+  // the result is the 90th percentile of those transfers, as Cloudflare's own page reports it. At most about 15 s per
+  // direction, roughly 60 MB down and 30 MB up on a fast line. Starts only when you click.
+  const SPEED = "https://speed.cloudflare.com/";
+  const mbps = (bytes, ms) => (bytes * 8) / (ms / 1000) / 1e6;
+  const pct = (list, p) => { const a = list.slice().sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : 0; };
+  const fmtMbps = (v) => (v >= 99.95 ? Math.round(v) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
+  function xfer(up, bytes, onProgress, keep) {
+    return new Promise((resolve, reject) => {
+      const t0 = performance.now();
+      keep.req = GM_xmlhttpRequest({
+        method: up ? "POST" : "GET", url: SPEED + (up ? "__up" : "__down?bytes=" + bytes), anonymous: true, timeout: 30000,
+        data: up ? new Blob([new Uint8Array(bytes)]) : undefined, headers: up ? { "Content-Type": "application/octet-stream" } : {},
+        responseType: up ? undefined : "arraybuffer",
+        onprogress: (e) => { if (!up && onProgress && e && e.loaded) onProgress(e.loaded, performance.now() - t0); },
+        // live upload progress where the add-on reports it (Violentmonkey does); otherwise the last finished transfer shows
+        upload: { onprogress: (e) => { if (up && onProgress && e && e.loaded) onProgress(e.loaded, performance.now() - t0); } },
+        onload: (r) => {
+          if (r.status >= 400) return reject(new Error("HTTP " + r.status));
+          const colo = /^cf-ray:\s*\S+-([A-Z]{3})\s*$/im.exec(r.responseHeaders || "");
+          resolve({ ms: performance.now() - t0, colo: colo ? colo[1] : "" });
+        },
+        onerror: () => reject(new Error("offline")), ontimeout: () => reject(new Error("slow")), onabort: () => reject(new Error("stopped")),
+      });
+    });
+  }
+  async function speedRun(st, paint) {
+    const keep = st.keep;
+    // latency: the fastest of a few empty requests is the connection, the spread between them the jitter
+    const pings = [];
+    for (let i = 0; i < 8 && !st.stop; i++) { const r = await xfer(false, 0, null, keep); pings.push(r.ms); st.colo = st.colo || r.colo; }
+    st.ping = pct(pings, 0.5);
+    st.jitter = pings.length > 1 ? pings.slice(1).reduce((n, v, i) => n + Math.abs(v - pings[i]), 0) / (pings.length - 1) : 0;
+    paint();
+    for (const up of [false, true]) {
+      const sizes = up ? [1e5, 1e6, 5e6, 1e7, 2e7] : [1e5, 1e6, 1e7, 2.5e7, 5e7];
+      const samples = [], t0 = performance.now();
+      let i = 0, atSize = 0;
+      st.phase = up ? "up" : "down";
+      while (!st.stop && performance.now() - t0 < 15000) {
+        const size = sizes[i];
+        const r = await xfer(up, size, (loaded, ms) => { if (ms > 200) { st.now = mbps(loaded, ms); paint(); } }, keep);
+        if (r.ms > 150) samples.push(mbps(size, r.ms));
+        st[st.phase] = pct(samples.length ? samples : [mbps(size, r.ms)], 0.9); st.now = 0; paint();
+        if (r.ms < 1000 && i < sizes.length - 1) { i++; continue; }        // too quick to measure well: go bigger
+        if (++atSize >= 4) break;
+      }
+    }
+    st.phase = "done";
+  }
+  function showSpeed(hit) {
+    const body = shell(hit, TITLES.speed);
+    const intro = '<p class="muted sline">Measures your connection with Cloudflare’s speed test (speed.cloudflare.com). Nothing is sent until you click Start. ' +
+      "A test moves up to about 80 MB on a fast line, so mind a metered connection.</p>";
+    let st = null;
+    const stat = (k, label, v, unit, small) => '<div class="stat' + (small ? " small" : "") + (st.phase === k && !st.err ? " now" + (k === "up" ? " upv" : "") : "") + '"><b>' + label + '</b><span class="v">' + v + '</span><span class="u">' + unit + "</span></div>";
+    // Speedometer: 0 to 1000 Mbps on a log scale over a 240° arc; the needle follows the live speed.
+    const G_MAX = 1000, gFrac = (v) => Math.max(0, Math.min(1, Math.log10(1 + v) / Math.log10(1 + G_MAX)));
+    const gPoint = (f, r) => { const a = (150 + 240 * f) * Math.PI / 180; return [100 + r * Math.cos(a), 100 + r * Math.sin(a)]; };
+    const GAUGE = '<div class="gauge"><svg viewBox="0 0 200 170" role="img" aria-label="Speedometer"><path class="gtrack" pathLength="100" d="M30.72 140 A80 80 0 1 1 169.28 140"/>' +
+      '<path class="gfill" pathLength="100" d="M30.72 140 A80 80 0 1 1 169.28 140" stroke-dasharray="0 100"/>' +
+      [0, 5, 10, 50, 100, 250, 500, 1000].map((v) => { const [x, y] = gPoint(gFrac(v), 58); return '<text class="gtick" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '">' + (v >= 1000 ? "1G" : v) + "</text>"; }).join("") +
+      '<line class="needle" x1="100" y1="100" x2="168" y2="100"/><circle class="hub" cx="100" cy="100" r="5"/></svg>' +
+      '<div class="gread"><span class="gv">0</span><span class="gu">Mbps</span><span class="gl">Ready</span></div></div>';
+    const paintGauge = () => {
+      const g = body.querySelector(".gauge"); if (!g) return;
+      const k = st.phase === "up" ? "up" : st.phase === "done" || st.err ? (st.up != null ? "up" : "down") : "down";
+      const running = !st.err && (st.phase === "down" || st.phase === "up");
+      const v = running ? (st.now || st[st.phase] || 0) : st.phase === "done" ? st[k] || 0 : 0, f = gFrac(v);   // done: rests on the result shown
+      g.classList.toggle("up", st.phase === "up" || (st.phase === "done" && k === "up"));
+      g.querySelector(".gfill").setAttribute("stroke-dasharray", (f * 100).toFixed(2) + " 100");
+      g.querySelector(".needle").style.transform = "rotate(" + (150 + 240 * f).toFixed(1) + "deg)";
+      g.querySelector(".gv").textContent = running ? fmtMbps(v) : st.phase === "ping" && !st.err ? "…" : st[k] != null ? fmtMbps(st[k]) : "–";
+      g.querySelector(".gl").textContent = st.err ? "Stopped" : { ping: "Latency", down: "Download", up: "Upload" }[st.phase] || "Done";
+    };
+    const paint = () => {
+      const live = (k) => (st.phase === k && st.now ? fmtMbps(st.now) : st[k] != null ? fmtMbps(st[k]) : "–");
+      body.querySelector(".sgrid").innerHTML = stat("down", "Download", live("down"), "Mbps") + stat("up", "Upload", live("up"), "Mbps") +
+        stat("ping", "Latency", st.ping != null ? Math.round(st.ping) : "–", "ms", true) + stat("jitter", "Jitter", st.jitter != null ? Math.round(st.jitter) : "–", "ms", true);
+      paintGauge();
+      body.querySelector(".state").textContent = st.err ? "The test stopped: " + st.err + "." : { ping: "Measuring latency…", down: "Testing download…", up: "Testing upload…",
+        done: "Done" + (st.colo ? " · Cloudflare server " + st.colo : "") + " · " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }[st.phase] || "";
+    };
+    const idle = () => {
+      body.innerHTML = intro + '<div class="row"><button class="b pri go" type="button">' + ICON.speed + "Start test</button></div>";
+      body.querySelector(".go").addEventListener("click", start);
+    };
+    const start = () => {
+      st = { phase: "ping", now: 0, keep: {}, stop: false };
+      card().classList.toggle("nogauge", !settings().gauge);
+      body.innerHTML = '<div class="sbox">' + GAUGE + '<div class="sgrid"></div></div><p class="muted sline state" role="status"></p><div class="row"><button class="b pri act" type="button">Stop</button></div>';
+      const act = body.querySelector(".act"), me = st;
+      act.addEventListener("click", () => { if (me.phase === "done" || me.err) start(); else { me.stop = true; try { me.keep.req && me.keep.req.abort(); } catch (e) { /* gone */ } } });
+      paint();
+      speedRun(me, paint).catch((e) => { me.err = e.message === "stopped" || me.stop ? "you stopped it" : e.message === "offline" ? "Cloudflare's speed test couldn't be reached" : e.message; })
+        .finally(() => { if (me.stop && !me.err) me.err = "you stopped it"; if (st === me) { paint(); act.textContent = "Run again"; } });
+    };
+    idle();
+    cleanup = () => { if (st) { st.stop = true; try { st.keep.req && st.keep.req.abort(); } catch (e) { /* gone */ } } };
+  }
+
   // Currency: one request for all of the day's rates (base EUR), cached 6 hours inside Violentmonkey.
   function rates() {
     const c = GM_getValue("rates", null);
@@ -586,7 +730,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     if (!again && hit.type === "translate" && hit.sure && s.translateAuto && canAutoTranslate(getQuery()) && toTranslator(hit, getQuery())) return;
     if (!mount()) return;
     current = hit;
-    ({ parcel: showParcel, colour: showColour, random: showRandom, timer: showTimer, currency: showCurrency, translate: showTranslate })[hit.type](hit);
+    ({ parcel: showParcel, colour: showColour, random: showRandom, timer: showTimer, currency: showCurrency, speed: showSpeed, translate: showTranslate })[hit.type](hit);
     // Startpage draws its own converter/timer a moment after the page loads; if one turns up, this card goes.
     if (hit.type === "timer" || hit.type === "currency") [600, 1500, 3500].forEach((ms) => setTimeout(() => { if (current === hit && startpageAnswered()) { current = null; remove(); } }, ms));
   }
