@@ -11,12 +11,12 @@ counts every request. Not yet tested with a real AI service or on startpage.com 
 
 | Part | Version |
 |---|---|
-| Blackout theme | 1.2.1 |
-| Tweaks | 1.1.0 |
+| Blackout theme | 1.2.2 |
+| Tweaks | 1.1.1 |
 | Home widgets | 1.2.0 |
 | Instant Answer | 2.6.0 |
 | F1 card | 1.3.2 |
-| Quick answers | 1.2.0 |
+| Quick answers | 1.2.1 |
 
 Speed (measured with the stand-in, before → after):
 
@@ -35,6 +35,16 @@ Answer quality (only changes that clearly help):
 - A follow-up that already stands on its own keeps its words as the search, instead of being reworded.
 - Reviewed and kept as they are: when it answers by itself or shows Ask AI, the SKIP rule, and which results are sent
   (the top 8, without hidden sites or Startpage's trap link, descriptions cut at 320 characters).
+
+Interface (checked at 1600 and 400 pixels wide, with the Blackout theme and on a light page without it):
+
+- Every field in Instant Answer's settings has a label that screen readers announce.
+- A finished answer or follow-up is read out once by screen readers, not word by word as it is written.
+- Tab stays inside the settings and conversation panels while they are open, and closing them puts the focus back
+  where it was, also when they were opened from the ⋯ menu.
+- Small grey text is easier to read: the Blackout theme's grey is a little lighter (contrast 3.9 → 5.4), and on light
+  pages without the theme, Instant Answer, quick answers and the ⋮ menu use darker greys and a darker accent so text
+  and buttons reach a contrast of 4.5. The speed test's upload colour is darker on light pages.
 
 ## 1.5.0 · 17 October 2026
 

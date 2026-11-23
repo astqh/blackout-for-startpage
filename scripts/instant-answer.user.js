@@ -545,17 +545,19 @@
   // No box: A slim header, the first few lines of the answer fading out, and "Show more" to open the
   // rest (full answer, source chips, follow-up). One hairline underneath separates it from the real results.
   const CSS = `
-:host { all: initial; display: block; margin: 0 0 20px; color: inherit; color-scheme: inherit; }
+:host { all: initial; display: block; margin: 0 0 20px; color: inherit; color-scheme: inherit;
+  --acc: var(--sp-accent, #3f51c8); --mut: var(--sp-muted, #5f6368); --onacc: var(--sp-bg, #ffffff); }
+:host([data-dark]) { --acc: var(--sp-accent, #8ab4f8); --mut: var(--sp-muted, #9aa0a6); --onacc: var(--sp-bg, #202124); }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 .wrap { font: 15px/1.6 var(--sp-font, "Segoe UI", system-ui, sans-serif); color: var(--sp-ink, inherit); }
 .ov { padding-bottom: 14px; border-bottom: 1px solid var(--sp-line, rgba(127,127,127,.2)); }
 .head { display: flex; align-items: center; gap: 8px; min-height: 30px; margin-bottom: 2px; }
-.spark { width: 18px; height: 18px; flex: none; color: var(--sp-accent, #6677fb); }
+.spark { width: 18px; height: 18px; flex: none; color: var(--acc); }
 .ov.busy .spark { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .45; transform: scale(.82); } }
 .title { font-weight: 600; font-size: 14px; letter-spacing: .01em; flex: none; }
-.meta { color: var(--sp-muted, rgba(127,127,127,.9)); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.meta { color: var(--mut); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .right { margin-left: auto; display: flex; align-items: center; gap: 2px; flex: none; }
 .icon { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 999px; display: inline-grid; place-items: center; color: var(--sp-ink-2, inherit); }
 .icon:hover, .icon[aria-expanded="true"] { background: var(--sp-surface-2, rgba(127,127,127,.14)); color: var(--sp-ink, inherit); }
@@ -573,7 +575,7 @@ img.fav, .dot { width: 18px; height: 18px; border-radius: 50%; flex: none; backg
 .menu button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; font: 13.5px var(--sp-font, "Segoe UI", sans-serif); }
 .menu button:hover, .menu button:focus-visible { background: var(--sp-surface-2, rgba(127,127,127,.14)); outline: none; }
 .menu svg { width: 16px; height: 16px; color: var(--sp-ink-2, inherit); }
-.icon:focus-visible, .stack:focus-visible, .more:focus-visible, .less:focus-visible, .chip:focus-visible, .chips a:focus-visible, .cite:focus-visible, button.btn:focus-visible, .panel input:focus-visible, .panel select:focus-visible { outline: 2px solid var(--sp-accent, #6677fb); outline-offset: 2px; }
+.icon:focus-visible, .stack:focus-visible, .more:focus-visible, .less:focus-visible, .chip:focus-visible, .chips a:focus-visible, .cite:focus-visible, button.btn:focus-visible, .panel input:focus-visible, .panel select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .main { position: relative; }
 .body { color: var(--sp-ink, inherit); }
 .body.clamped { max-height: 8em; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 3.4em), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 3.4em), transparent); }
@@ -581,34 +583,34 @@ img.fav, .dot { width: 18px; height: 18px; border-radius: 50%; flex: none; backg
 .body p { margin: 0 0 .6em; }
 .body ul, .body ol { margin: 0 0 .6em; padding-left: 1.25em; }
 .body li { margin: .2em 0; }
-.body li::marker { color: var(--sp-muted, inherit); }
+.body li::marker { color: var(--mut); }
 .body strong { font-weight: 600; color: var(--sp-ink, inherit); }
 .body code { font: 13px var(--sp-mono, Consolas, monospace); background: var(--sp-surface-2, rgba(127,127,127,.15)); padding: 1px 5px; border-radius: 5px; }
 .cites { white-space: nowrap; }
 .cite { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px; margin-left: 3px; border-radius: 999px; font: 600 10.5px/1 var(--sp-font, "Segoe UI", sans-serif); text-decoration: none; vertical-align: 2px; color: var(--sp-ink-2, inherit); background: var(--sp-surface-2, rgba(127,127,127,.18)); }
-.cite:hover, .cite.hot { background: var(--sp-accent, #6677fb); color: var(--sp-bg, #fff); }
+.cite:hover, .cite.hot { background: var(--acc); color: var(--onacc); }
 .more { all: unset; cursor: pointer; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px 6px 16px; border-radius: 999px; font: 600 13px var(--sp-font, "Segoe UI", sans-serif); white-space: nowrap; color: var(--sp-ink, inherit); background: var(--sp-surface-2, rgba(127,127,127,.2)); box-shadow: 0 0 0 1px var(--sp-line-strong, rgba(127,127,127,.3)), 0 6px 18px rgba(0,0,0,.35); }
-.more:hover { box-shadow: 0 0 0 1px var(--sp-accent, #6677fb), 0 6px 18px rgba(0,0,0,.35); }
+.more:hover { box-shadow: 0 0 0 1px var(--acc), 0 6px 18px rgba(0,0,0,.35); }
 .ext { display: none; }
 .ov.open .ext { display: grid; gap: 12px; margin-top: 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips a { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; height: 28px; padding: 0 10px 0 5px; border-radius: 999px; text-decoration: none; font: 12.5px var(--sp-font, "Segoe UI", sans-serif); color: var(--sp-ink-2, inherit); background: var(--sp-surface-2, rgba(127,127,127,.12)); }
 .chips a .dot, .chips a img.fav { box-shadow: none; }
-.chips a:hover, .chips a.hot { color: var(--sp-ink, inherit); box-shadow: inset 0 0 0 1px var(--sp-accent, #6677fb); }
+.chips a:hover, .chips a.hot { color: var(--sp-ink, inherit); box-shadow: inset 0 0 0 1px var(--acc); }
 .chips .h { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 24ch; }
-.chips .n { font-weight: 700; font-size: 11px; color: var(--sp-muted, inherit); }
+.chips .n { font-weight: 700; font-size: 11px; color: var(--mut); }
 .turn { padding-top: 12px; border-top: 1px solid var(--sp-line, rgba(127,127,127,.2)); }
 .turn .q { font-weight: 600; margin-bottom: 4px; }
-.turn .steps { display: grid; gap: 2px; margin: 0 0 6px; font-size: 12.5px; color: var(--sp-muted, inherit); }
+.turn .steps { display: grid; gap: 2px; margin: 0 0 6px; font-size: 12.5px; color: var(--mut); }
 .turn .steps span::before { content: "↳ "; }
 .fchips { margin-top: 8px; }
 .turn .a > :last-child { margin-bottom: 0; }
 .turn .a p { margin: 0 0 .6em; } .turn .a ul, .turn .a ol { margin: 0 0 .6em; padding-left: 1.25em; }
 .ask { display: flex; align-items: center; gap: 4px; padding: 2px 3px 2px 16px; border-radius: 999px; background: var(--sp-surface-2, rgba(127,127,127,.12)); box-shadow: inset 0 0 0 1px transparent; }
-.ask:focus-within { box-shadow: inset 0 0 0 1px var(--sp-accent, #6677fb); }
+.ask:focus-within { box-shadow: inset 0 0 0 1px var(--acc); }
 .ask input { flex: 1; min-width: 0; appearance: none; border: 0; outline: none; background: transparent; padding: 7px 0; font: 14px var(--sp-font, "Segoe UI", sans-serif); color: var(--sp-ink, inherit); }
-.ask input::placeholder { color: var(--sp-muted, inherit); }
-.fine { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--sp-muted, inherit); }
+.ask input::placeholder { color: var(--mut); }
+.fine { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--mut); }
 .less { all: unset; cursor: pointer; margin-left: auto; display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 999px; font: 600 12.5px var(--sp-font, "Segoe UI", sans-serif); color: var(--sp-ink-2, inherit); }
 .less:hover { background: var(--sp-surface-2, rgba(127,127,127,.14)); color: var(--sp-ink, inherit); }
 .shimmer { display: grid; gap: 9px; padding: 6px 0 4px; }
@@ -620,42 +622,42 @@ img.fav, .dot { width: 18px; height: 18px; border-radius: 50%; flex: none; backg
 .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .row { align-items: center; }
 .row .pass { font: inherit; color: inherit; background: var(--sp-field, transparent); border: 1px solid var(--sp-line-strong, rgba(127,127,127,.4)); border-radius: 999px; padding: 6px 14px; min-width: 14em; outline: none; }
-.row .pass:focus { border-color: var(--sp-accent, #8ab4f8); }
+.row .pass:focus { border-color: var(--acc); }
 .row .muted { font-size: 12.5px; opacity: .75; }
 button.btn { all: unset; cursor: pointer; font: 600 13px var(--sp-font, sans-serif); padding: 6px 14px; border-radius: 999px; border: 1px solid var(--sp-line-strong, rgba(127,127,127,.3)); color: var(--sp-ink, inherit); }
-button.btn.primary { background: var(--sp-accent, #6677fb); border-color: var(--sp-accent, #6677fb); color: var(--sp-bg, #fff); }
-button.btn:hover { border-color: var(--sp-accent, #6677fb); }
+button.btn.primary { background: var(--acc); border-color: var(--acc); color: var(--onacc); }
+button.btn:hover { border-color: var(--acc); }
 .chiprow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .chip { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px 6px 11px; border-radius: 999px; font: 600 13px var(--sp-font, sans-serif); color: var(--sp-ink, inherit); background: var(--sp-surface-2, rgba(127,127,127,.14)); }
-.chip:hover { box-shadow: inset 0 0 0 1px var(--sp-accent, #6677fb); }
-.chip svg { width: 15px; height: 15px; color: var(--sp-accent, #6677fb); }
-.chip-note { font-size: 12.5px; color: var(--sp-muted, inherit); }
+.chip:hover { box-shadow: inset 0 0 0 1px var(--acc); }
+.chip svg { width: 15px; height: 15px; color: var(--acc); }
+.chip-note { font-size: 12.5px; color: var(--mut); }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; z-index: 2147483000; padding: 16px; }
 .panel { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--sp-surface, Canvas); color: var(--sp-ink, CanvasText); border: 1px solid var(--sp-line-strong, rgba(127,127,127,.3)); border-radius: 16px; padding: 20px 22px; font: 14px/1.5 var(--sp-font, "Segoe UI", system-ui, sans-serif); }
 .panel h2 { font-size: 18px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
-.panel h2 svg { width: 20px; height: 20px; color: var(--sp-accent, #6677fb); }
-.panel .sub { color: var(--sp-muted, inherit); margin: 0 0 14px; font-size: 13px; }
+.panel h2 svg { width: 20px; height: 20px; color: var(--acc); }
+.panel .sub { color: var(--mut); margin: 0 0 14px; font-size: 13px; }
 .panel fieldset { border: 0; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; }
 .panel legend { font-weight: 600; margin-bottom: 4px; padding: 0; }
 .panel label.opt { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
-.panel label.opt span small { display: block; color: var(--sp-muted, inherit); font-size: 12.5px; }
+.panel label.opt span small { display: block; color: var(--mut); font-size: 12.5px; }
 .panel input[type=text], .panel input[type=password], .panel select { width: 100%; font: 14px var(--sp-font, sans-serif); color: inherit; background: var(--sp-field, transparent); border: 1px solid var(--sp-line-strong, rgba(127,127,127,.3)); border-radius: 10px; padding: 8px 10px; }
-.panel .quick { font-size: 12.5px; color: var(--sp-muted, #8a8a94); }
-.panel .quick button { all: unset; cursor: pointer; color: var(--sp-accent, #8ab4f8); text-decoration: underline; text-underline-offset: 2px; margin-right: 6px; }
-.panel .quick button:focus-visible { outline: 2px solid var(--sp-accent, #8ab4f8); outline-offset: 2px; }
+.panel .quick { font-size: 12.5px; color: var(--mut); }
+.panel .quick button { all: unset; cursor: pointer; color: var(--acc); text-decoration: underline; text-underline-offset: 2px; margin-right: 6px; }
+.panel .quick button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .panel .grp { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--sp-surface-2, rgba(127,127,127,.08)); }
 .panel .grp[hidden] { display: none; }
 .panel .lbl { font-size: 12.5px; color: var(--sp-ink-2, inherit); }
-.panel .status { font-size: 12.5px; color: var(--sp-muted, inherit); min-height: 1.2em; }
-.panel .status.ok { color: var(--sp-accent, #6677fb); }
+.panel .status { font-size: 12.5px; color: var(--mut); min-height: 1.2em; }
+.panel .status.ok { color: var(--acc); }
 .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--sp-surface-2, rgba(127,127,127,.08)); margin-bottom: 14px; }
 .switch b { font-size: 15px; }
 .switch input { appearance: none; -webkit-appearance: none; flex: none; width: 42px; height: 24px; border-radius: 999px; background: var(--sp-line-strong, rgba(127,127,127,.4)); position: relative; cursor: pointer; transition: background .15s; margin: 0; }
 .switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--sp-ink, #fff); transition: transform .15s; }
-.switch input:checked { background: var(--sp-accent, #6677fb); }
+.switch input:checked { background: var(--acc); }
 .switch input:checked::after { transform: translateX(18px); background: var(--sp-bg, #fff); }
-.switch input:focus-visible { outline: 2px solid var(--sp-accent, #6677fb); outline-offset: 2px; }
-.panel input[type=radio], .panel input[type=checkbox] { accent-color: var(--sp-accent, #6677fb); }
+.switch input:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.panel input[type=radio], .panel input[type=checkbox] { accent-color: var(--acc); }
 .panel .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 @media (prefers-reduced-motion: reduce) { .shimmer i, .ov.busy .spark { animation: none; } .stack svg, .more svg, .less svg { transition: none; } }
 `;
@@ -671,6 +673,20 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
   };
 
   let host = null, root = null, ctx = null, stop = null;
+  // Keyboard in the panels: Tab stays inside an open panel, and closing it puts focus back where it was.
+  function trapTab(box, e) {
+    if (e.key !== "Tab") return;
+    const f = Array.from(box.querySelectorAll("button, input, select, textarea, a[href], summary")).filter((el) => !el.disabled && el.getClientRects().length);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1], cur = root.activeElement;
+    if (e.shiftKey && (cur === first || !box.contains(cur))) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (cur === last || !box.contains(cur))) { e.preventDefault(); first.focus(); }
+  }
+  const focusBack = (el) => { if (el && el.isConnected && el.focus) el.focus({ preventScroll: true }); };
+  const isDark = () => {
+    const c = (getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g) || []).map(Number);
+    return c.length < 3 || c[3] === 0 ? matchMedia("(prefers-color-scheme: dark)").matches : 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2] < 128;
+  };
 
   function mount() {
     if (host && host.isConnected) return true;
@@ -678,6 +694,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     if (!list || !list.parentNode) return false;
     host = document.createElement("div");
     host.id = "sp-instant-answer";
+    if (isDark()) host.setAttribute("data-dark", "");
     root = host.attachShadow({ mode: "closed" });
     const style = document.createElement("style"); style.textContent = CSS;
     const wrap = document.createElement("div"); wrap.className = "wrap";
@@ -765,7 +782,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       '<button type="button" role="menuitem" data-act="gear">' + ICON.gear + "Settings</button>" +
       '<button type="button" role="menuitem" data-act="close">' + ICON.close + "Hide for this search</button>" +
       "</div></div></div></div>" +
-      '<div class="main"><div class="body"><div class="shimmer" role="status" aria-label="Writing the overview"><i></i><i></i><i></i></div></div>' +
+      '<div class="main"><div class="body" aria-live="polite" aria-busy="true"><div class="shimmer" role="status" aria-label="Writing the overview"><i></i><i></i><i></i></div></div>' +
       '<button class="more" type="button" hidden>Show more' + ICON.down + "</button></div>" +
       '<div class="ext"><div class="chips" hidden></div><div class="turns"></div>' +
       '<form class="ask"><input type="text" placeholder="Ask a follow-up…" aria-label="Ask a follow-up"><button class="icon" type="submit" title="Ask" aria-label="Ask">' + ICON.send + "</button></form>" +
@@ -882,6 +899,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
   }
   function showError(kind, retry, prov) {
     const body = root.querySelector(".body");
+    body.setAttribute("aria-busy", "false");
     const msg = errMsg(kind, prov);
     root.querySelector(".ov").classList.remove("busy");
     root.querySelector(".more").hidden = true;
@@ -917,6 +935,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       ctx.answer = text; ctx.done = true; ctx.cached = fromCache;
       root.querySelector(".ov").classList.remove("busy");
       body.innerHTML = render(text, results);
+      body.setAttribute("aria-busy", "false");
       fillSources(results, text);
       clampBody(true);
       const form = root.querySelector(".ask");
@@ -971,7 +990,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
   }
 
   function addTurn(question) {
-    const turn = document.createElement("div"); turn.className = "turn";
+    const turn = document.createElement("div"); turn.className = "turn"; turn.setAttribute("aria-live", "polite"); turn.setAttribute("aria-busy", "true");
     turn.innerHTML = '<div class="q"></div><div class="a"><div class="shimmer"><i></i><i></i><i></i></div></div>';
     turn.querySelector(".q").textContent = question;
     root.querySelector(".turns").append(turn);
@@ -983,6 +1002,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
   async function followUp(question) {
     setOpen(true);
     const a = addTurn(question), turn = { q: question, a: "", steps: [], searches: 0, pages: 0 };
+    const settled = () => a.parentElement.setAttribute("aria-busy", "false");   // read out once, when complete
     const paint = (final) => { a.innerHTML = (turn.steps.length ? stepsHTML(turn.steps) : "") + (turn.a ? render(turn.a, ctx.sources) + (final ? sourceChips(turn.a, ctx.sources) : "") : '<div class="shimmer"><i></i><i></i><i></i></div>'); };
     const work = { sources: ctx.sources, step: (t) => { turn.steps.push(t); paint(); } };
     const history = [{ role: "user", content: ctx.query }, { role: "assistant", content: ctx.answer }];
@@ -1010,11 +1030,13 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       }
     } catch (e) {
       stop = null;
+      settled();
       if (e.message === "aborted") return;
       a.innerHTML = (turn.steps.length ? stepsHTML(turn.steps) : "") + '<p class="err"><b>Follow-up failed</b> (' + esc(errMsg(e.message, ctx.prov)[0].replace(/<[^>]+>/g, "")) + ").</p>";
       return;
     }
     stop = null; if (frame) { cancelAnimationFrame(frame); frame = 0; }
+    settled();
     if (!turn.a) { a.innerHTML = '<p class="err">No answer.</p>'; return; }
     paint(true);
     ctx.turns.push({ role: "user", content: question }, { role: "assistant", content: turn.a });
@@ -1196,18 +1218,18 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
 .conv .cq { font-weight: 600; color: var(--sp-ink, inherit); }
 .conv .ca > :last-child { margin-bottom: 0; }
 .conv .ca p { margin: 0 0 .6em; } .conv .ca ul, .conv .ca ol { margin: 0 0 .6em; padding-left: 1.25em; }
-.conv .steps { display: grid; gap: 2px; margin: 4px 0 6px; font-size: 12.5px; color: var(--sp-muted, inherit); }
+.conv .steps { display: grid; gap: 2px; margin: 4px 0 6px; font-size: 12.5px; color: var(--mut); }
 .conv .steps span::before { content: "↳ "; }
-.conv .status { font-size: 12.5px; color: var(--sp-muted, inherit); }
+.conv .status { font-size: 12.5px; color: var(--mut); }
 .conv form { display: flex; align-items: flex-end; gap: 6px; margin: 0 14px; padding: 6px 6px 6px 14px; border-radius: 16px; background: var(--sp-surface-2, rgba(127,127,127,.12)); box-shadow: inset 0 0 0 1px transparent; }
-.conv form:focus-within { box-shadow: inset 0 0 0 1px var(--sp-accent, #6677fb); }
+.conv form:focus-within { box-shadow: inset 0 0 0 1px var(--acc); }
 .conv textarea { flex: 1; min-width: 0; resize: none; border: 0; outline: none; background: transparent; color: var(--sp-ink, inherit); font: 14.5px/1.5 var(--sp-font, "Segoe UI", sans-serif); padding: 5px 0; max-height: 9em; }
-.conv .foot { padding: 8px 16px 12px; font-size: 12px; color: var(--sp-muted, inherit); }
+.conv .foot { padding: 8px 16px 12px; font-size: 12px; color: var(--mut); }
 .conv .list { display: grid; gap: 4px; }
 .conv .list button { all: unset; cursor: pointer; display: grid; gap: 1px; padding: 8px 10px; border-radius: 10px; }
 .conv .list button:hover, .conv .list button:focus-visible { background: var(--sp-surface-2, rgba(127,127,127,.14)); }
-.conv .list small { color: var(--sp-muted, inherit); font-size: 12px; }
-.conv .icon.on { color: var(--sp-accent, #6677fb); }
+.conv .list small { color: var(--mut); font-size: 12px; }
+.conv .icon.on { color: var(--acc); }
 @media (max-width: 600px) { .conv { width: 100vw; border-left: 0; } }`;
   const CONV_ICON = {
     expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>',
@@ -1231,9 +1253,12 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
   const forgetChat = (id) => GM_setValue("chats", chats().filter((c) => c.id !== id));
 
   // Opens a conversation: from the answer on this page (from = ctx), or a kept one (from = a stored chat).
+  let convBack = null;
   function openConversation(from) {
     if (!root && !mount()) return;
     if (convRoot) closeConversation();
+    convBack = root.activeElement;
+    if (convBack && convBack.closest && convBack.closest(".menu-wrap")) convBack = root.querySelector(".dots");
     S = load();
     if (from && from.view) conv = Object.assign({ prov: S.provider, saved: true }, JSON.parse(JSON.stringify(from)));
     else conv = {
@@ -1256,7 +1281,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     root.append(box);
     convRoot = box;
     const ta = box.querySelector("textarea");
-    box.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") { e.preventDefault(); closeConversation(); } });
+    box.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") { e.preventDefault(); closeConversation(); } else trapTab(box, e); });
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); box.querySelector("form").requestSubmit(); } });
     ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; });
     box.querySelector("form").addEventListener("submit", (e) => { e.preventDefault(); const q = ta.value.trim(); if (q && !conv.busy) { ta.value = ""; ta.style.height = "auto"; converse(q); } });
@@ -1279,6 +1304,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     if (S.keepChats && conv.view.length > 1) storeChat();      // "keep conversations" setting
     else if (!conv.saved) forgetChat(conv.id);
     convRoot.remove(); convRoot = null; conv = null;
+    focusBack(convBack); convBack = null;
   }
   function paintConvHead() {
     const b = convRoot.querySelector('[data-c="save"]');
@@ -1372,7 +1398,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
 .sum .head { min-height: 26px; margin-bottom: 4px; }
 .sum .body { font-size: 14px; line-height: 1.55; }
 .sum .body ul { margin-bottom: 0; }
-.step { margin: 0 0 6px !important; font-size: 13px; color: var(--sp-muted, inherit); }
+.step { margin: 0 0 6px !important; font-size: 13px; color: var(--mut); }
 .sum .fine { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { .sum.busy .spark { animation: none; } }`;
   const sums = new Map();                          // result id -> { host, root, stop, busy, done }
@@ -1440,6 +1466,7 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     if (!s) {
       const host = document.createElement("div");
       host.className = "sp-ai-summary";
+      if (isDark()) host.setAttribute("data-dark", "");
       const sr = host.attachShadow({ mode: "closed" });
       sr.innerHTML = "<style>" + SUM_CSS + '</style><div class="wrap"></div>';
       s = { host, root: sr, stop: null, busy: false, done: false };
@@ -1523,6 +1550,8 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     const old = root.querySelector(".overlay"); if (old) old.remove();
     const draft = Object.assign({}, load());
     if (fromInvite && draft.enabled !== true) draft.enabled = true;
+    let back = (root && root.activeElement) || document.activeElement;
+    if (back && back.closest && back.closest(".menu-wrap")) back = root.querySelector(".dots");      // the ⋯ menu closes first
     const ov = document.createElement("div"); ov.className = "overlay";
     const opt = (name, value, title, note) => '<label class="opt"><input type="radio" name="' + name + '" value="' + value + '"><span>' + title + (note ? "<small>" + note + "</small>" : "") + "</span></label>";
     ov.innerHTML =
@@ -1532,22 +1561,22 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       '<label class="switch"><span><b>Instant Answer</b><br><small class="lbl">Off means it never runs and shows nothing.</small></span><input type="checkbox" id="ai-on"></label>' +
       "<fieldset><legend>AI service</legend>" +
       opt("prov", "cloud", "Online AI service", "Any service that works like the OpenAI API: OpenAI, OpenRouter, OpenCode Go, Groq, Mistral, DeepSeek, or another address. Needs your key.") +
-      '<div class="grp" data-for="cloud"><span class="lbl">Service</span><select id="cl-preset">' +
+      '<div class="grp" data-for="cloud"><label class="lbl" for="cl-preset">Service</label><select id="cl-preset">' +
       Object.keys(PRESETS).map((k) => '<option value="' + k + '">' + esc(PRESETS[k].label) + "</option>").join("") + "</select>" +
-      '<span class="lbl" data-custom>Address (ends in /v1 for most services)</span><input type="text" id="cl-url" data-custom spellcheck="false" placeholder="https://example.com/v1">' +
-      '<span class="lbl" id="cl-keylbl">API key</span><input type="password" id="cl-key" autocomplete="off" spellcheck="false">' +
+      '<label class="lbl" data-custom for="cl-url">Address (ends in /v1 for most services)</label><input type="text" id="cl-url" data-custom spellcheck="false" placeholder="https://example.com/v1">' +
+      '<label class="lbl" id="cl-keylbl" for="cl-key">API key</label><input type="password" id="cl-key" autocomplete="off" spellcheck="false">' +
       '<span class="status" id="cl-status"></span></div>' +
       opt("prov", "local", "Your computer", "Any OpenAI-compatible server on your PC (llama.cpp, LM Studio, Ollama…). Private and free; only works while it is running.") +
-      '<div class="grp" data-for="local"><span class="lbl">Address</span><input type="text" id="lc-url" spellcheck="false">' +
+      '<div class="grp" data-for="local"><label class="lbl" for="lc-url">Address</label><input type="text" id="lc-url" spellcheck="false">' +
       '<span class="quick" id="lc-quick">Usual addresses: <button type="button" data-url="http://127.0.0.1:8080/v1">llama.cpp</button> <button type="button" data-url="http://127.0.0.1:1234/v1">LM Studio</button> <button type="button" data-url="http://127.0.0.1:11434/v1">Ollama</button></span>' +
-      '<span class="lbl">API key (only if your server needs one)</span><input type="password" id="lc-key" autocomplete="off" spellcheck="false">' +
-      '<span class="lbl">Model</span><select id="lc-model"></select><span class="status" id="lc-status"></span></div>' +
+      '<label class="lbl" for="lc-key">API key (only if your server needs one)</label><input type="password" id="lc-key" autocomplete="off" spellcheck="false">' +
+      '<label class="lbl" for="lc-model">Model</label><select id="lc-model"></select><span class="status" id="lc-status"></span></div>' +
       "</fieldset>" +
       '<fieldset data-for="cloud"><legend>Models</legend>' +
       opt("route", "auto", "Choose for me", "A fast model for short answers, a stronger one for harder questions and conversations.") +
       opt("route", "one", "One model for everything") +
-      '<div class="grp"><span class="lbl" id="m1-lbl">Fast model</span><select id="m-fast"></select>' +
-      '<span class="lbl" data-strong>Strong model</span><select id="m-strong" data-strong></select></div>' +
+      '<div class="grp"><label class="lbl" id="m1-lbl" for="m-fast">Fast model</label><select id="m-fast"></select>' +
+      '<label class="lbl" data-strong for="m-strong">Strong model</label><select id="m-strong" data-strong></select></div>' +
       "</fieldset>" +
       "<fieldset><legend>Thinking</legend>" +
       opt("think", "quick", "Quick", "Fastest. The model thinks as little as it can.") +
@@ -1565,21 +1594,21 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
       opt("depth", "deep", "Deep", "Up to 6 searches and 5 pages, checking several sources. Slower.") +
       '<label class="opt"><input type="checkbox" id="ai-tools"><span>Let the AI search Startpage and read pages<small>In follow-ups and conversations, only when the results don\'t cover the question. Its searches go to Startpage like yours.</small></span></label>' +
       '<label class="opt"><input type="checkbox" id="ai-keep"><span>Keep conversations in this browser<small>Off: a conversation is deleted when you close it, unless you keep that one. Follow-ups under an answer are deleted after 30 minutes without use.</small></span></label>' +
-      '<details><summary class="lbl">Instructions for conversations (Markdown)</summary><textarea id="ai-md" rows="8" spellcheck="false" style="width:100%;margin-top:6px;font:12.5px/1.45 var(--sp-mono, Consolas, monospace);color:inherit;background:var(--sp-field, transparent);border:1px solid var(--sp-line-strong, rgba(127,127,127,.3));border-radius:10px;padding:8px 10px"></textarea>' +
+      '<details><summary class="lbl">Instructions for conversations (Markdown)</summary><textarea id="ai-md" rows="8" aria-label="Instructions for conversations (Markdown)" spellcheck="false" style="width:100%;margin-top:6px;font:12.5px/1.45 var(--sp-mono, Consolas, monospace);color:inherit;background:var(--sp-field, transparent);border:1px solid var(--sp-line-strong, rgba(127,127,127,.3));border-radius:10px;padding:8px 10px"></textarea>' +
       '<span class="status">Empty uses the built-in instructions. {{date}} and {{query}} are filled in.</span></details>' +
       "</fieldset>" +
       "<fieldset><legend>Keeping data</legend>" +
-      '<div class="grp"><span class="lbl">Saved answers (the same search shows the saved answer)</span><select id="kp-ans"><option value="0">Don\'t save</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="1440">1 day</option></select>' +
-      '<span class="lbl">Follow-ups under an answer, after the last one</span><select id="kp-fol"><option value="0">Gone when I leave the page</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="1440">1 day</option></select>' +
-      '<span class="lbl">Kept conversations</span><select id="kp-chat"><option value="0">Until I delete them</option><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select>' +
+      '<div class="grp"><label class="lbl" for="kp-ans">Saved answers (the same search shows the saved answer)</label><select id="kp-ans"><option value="0">Don\'t save</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="1440">1 day</option></select>' +
+      '<label class="lbl" for="kp-fol">Follow-ups under an answer, after the last one</label><select id="kp-fol"><option value="0">Gone when I leave the page</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="1440">1 day</option></select>' +
+      '<label class="lbl" for="kp-chat">Kept conversations</label><select id="kp-chat"><option value="0">Until I delete them</option><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select>' +
       '<div><button type="button" class="btn" id="kp-wipe">Delete all saved answers, follow-ups and conversations</button></div>' +
       '<span class="status">Everything here stays in this browser. The AI service may keep what it was sent under its own rules.</span></div>' +
       "</fieldset>" +
       "<fieldset><legend>Key lock</legend>" +
       '<label class="opt"><input type="checkbox" id="kl-on"><span>Lock my keys with a passphrase<small>Your keys are stored encrypted, so a copy of your browser\'s files or a Violentmonkey backup doesn\'t reveal them. Forget the passphrase and you enter your keys again.</small></span></label>' +
       '<div class="grp" id="kl-grp"><span class="status" id="kl-state"></span>' +
-      '<span class="lbl">Passphrase</span><input type="password" id="kl-pass" autocomplete="new-password" spellcheck="false">' +
-      '<span class="lbl">Stay unlocked</span><select id="kl-hours"><option value="0">Only on this page</option><option value="1">1 hour</option><option value="8">8 hours</option><option value="24">24 hours</option></select>' +
+      '<label class="lbl" for="kl-pass">Passphrase</label><input type="password" id="kl-pass" autocomplete="new-password" spellcheck="false">' +
+      '<label class="lbl" for="kl-hours">Stay unlocked</label><select id="kl-hours"><option value="0">Only on this page</option><option value="1">1 hour</option><option value="8">8 hours</option><option value="24">24 hours</option></select>' +
       '<div><button type="button" class="btn" id="kl-lock">Lock now</button></div></div>' +
       "</fieldset>" +
       '<label class="opt" style="margin-bottom:12px"><input type="checkbox" id="ai-src"><span>Show sources with the answer</span></label>' +
@@ -1662,11 +1691,11 @@ button.btn:hover { border-color: var(--sp-accent, #6677fb); }
     q("#lc-quick").addEventListener("click", (e) => { const b = e.target.closest("[data-url]"); if (b) { q("#lc-url").value = b.dataset.url; loadList("local"); } });
     sync();
     loadList(draft.provider);
-    const close = () => ov.remove();
+    const close = () => { ov.remove(); focusBack(back); };
     q("#ai-cancel").addEventListener("click", () => { close(); if (S.enabled === null) invite(); });
     q("#ai-clear").addEventListener("click", (e) => { GM_setValue("cache", {}); GM_setValue("tabs", {}); e.currentTarget.textContent = "Cleared"; });
     ov.addEventListener("click", (e) => { if (e.target === ov) q("#ai-cancel").click(); });
-    ov.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") q("#ai-cancel").click(); });
+    ov.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") q("#ai-cancel").click(); else trapTab(ov.querySelector(".panel"), e); });
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
       const md = q("#ai-md").value.trim();

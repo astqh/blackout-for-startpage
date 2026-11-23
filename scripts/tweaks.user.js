@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tweaks for Startpage
 // @namespace    blackout-for-startpage/tweaks
-// @version      1.1.0
+// @version      1.1.1
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -134,7 +134,7 @@
   // Colours come from the Blackout theme (--sp-*) when it is on, otherwise a plain light or dark look that
   // follows the page.
   const VARS = ":host { --bg: var(--sp-surface, #ffffff); --bg2: var(--sp-surface-2, #f1f3f4); --ink: var(--sp-ink, #1f1f1f); --ink2: var(--sp-ink-2, #474747);" +
-    " --muted: var(--sp-muted, #70757a); --line: var(--sp-line-strong, #dadce0); --acc: var(--sp-accent, #1a0dab); --onacc: var(--sp-bg, #ffffff);" +
+    " --muted: var(--sp-muted, #5f6368); --line: var(--sp-line-strong, #dadce0); --acc: var(--sp-accent, #1a0dab); --onacc: var(--sp-bg, #ffffff);" +
     ' --font: var(--sp-font, "Segoe UI", system-ui, sans-serif); --mono: var(--sp-mono, Consolas, ui-monospace, monospace); }' +
     " :host([data-dark]) { --bg: var(--sp-surface, #202124); --bg2: var(--sp-surface-2, #303134); --ink: var(--sp-ink, #e8eaed); --ink2: var(--sp-ink-2, #bdc1c6);" +
     " --muted: var(--sp-muted, #9aa0a6); --line: var(--sp-line-strong, #3c4043); --acc: var(--sp-accent, #8ab4f8); --onacc: var(--sp-bg, #202124); }" +
