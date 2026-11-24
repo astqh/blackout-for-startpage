@@ -3,6 +3,32 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.7.0 · 24 November 2026
+
+Misspelt searches. Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on sample Startpage
+pages (50 checks in `tests/diction.js`). Startpage's suggestion service itself couldn't be reached from the test
+machine, so "Did you mean" on startpage.com is untested; it stays quiet if that service doesn't answer.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.2 |
+| Tweaks | 1.1.1 |
+| Home widgets | 1.2.0 |
+| Instant Answer | 2.6.1 |
+| F1 card | 1.3.3 |
+| Quick answers | 1.3.0 |
+
+- Misspelt keywords still find their card: `5 minut timer`, `spead test`, `flip a coinn`, `100 eruos`,
+  `good morning in frnech`, `f1 standigns`, `monza qualifiyng`, `silverstne results`. The card says what it understood
+  ("Timer · for “5 minute timer”"). Searches spelt right work exactly as before, and everyday words are never
+  "corrected" (`5 minute time`, `test drive` and `nice weather` show nothing).
+- A translation search with a misspelt word shows the Translate button instead of jumping to the translator.
+- Instant Answer treats `waht is …` and `diffrence between …` as the questions they are.
+- New quick answer, **Did you mean**: when a search finds almost nothing (fewer than 3 results) and Startpage shows no
+  correction of its own, it suggests a spelling from Startpage's own search suggestions, with a button to search it.
+  Its own switch is under ⚙.
+- The test suites are now in the repository, in `tests/` (see `tests/README.md`).
+
 ## 1.6.0 · 23 November 2026
 
 Instant Answer made faster, clearer and sturdier. Tested in Chromium with the scripts loaded the way Violentmonkey

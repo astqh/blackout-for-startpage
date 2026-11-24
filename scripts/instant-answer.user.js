@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Instant Answer for Startpage
 // @namespace    blackout-for-startpage/instant-answer
-// @version      2.6.0
+// @version      2.6.1
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -224,6 +224,59 @@
   }
 
   // ---------------------------------------------------------------- when to answer
+  // ---------------------------------------------------------------- typos in keywords
+  // "5 minut timer", "spead test": a word of 4+ letters that isn't a keyword here is swapped for the one keyword it's
+  // closest to (one letter off, or two for words of 7+ letters, a swap of two letters counting as one), unless it is
+  // an everyday word itself (COMMON, made by tests/make-common.js from a list of common English words). Searches are
+  // always tried as typed first, so exact searches work exactly as before; this only rescues near-misses.
+  const COMMON = new Set(/*COMMON*/"that there here were world such then company days those show same north save different sale west test meeting learning term says reading whole chat along stop sample song simply guides leading mary morning rest defined goes described cold hearing defense gave tits kong compared teams dave hong samples cleaning dogs wars beat happen compact differences happened leaving wave historic hate illegal const forth possibly definitions heating dealing trips belt coins cafe victory describes dose impossible healing beast whereas icons defence sons wearing shoulder refine tops hats decline explains tons stem ties heading bearing haven lung docs thats proc pays lang chose compete lips seating stops guided leasing companion wheat defines compile prot sage cave dies comparisons hose worthy legally chen pest coupled sake refined rays gays wound beginner nest nowhere conf summaries earning whore lone compute safer bent"/*/COMMON*/.split(" "));
+  function editDistance(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev2 = null, prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let low = i;
+      for (let j = 1; j <= b.length; j++) {
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (prev2 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur.push(v); if (v < low) low = v;
+      }
+      if (low > max) return max + 1;
+      prev2 = prev; prev = cur;
+    }
+    return prev[b.length];
+  }
+  const reach = (w) => (w.length >= 7 ? 2 : 1);
+  // The keyword a misspelt word stands for, or "" (none close enough, or two different ones equally close)
+  function nearest(w, vocab) {
+    if (w.length < 4 || !/^[a-z]+$/.test(w) || vocab.has(w) || COMMON.has(w)) return "";
+    const max = reach(w);
+    let best = [], bestD = max + 1;
+    for (const v of vocab) {
+      if (v.length < 3 || Math.abs(v.length - w.length) > max) continue;
+      const d = editDistance(w, v, max);
+      if (d > max) continue;
+      if (d < bestD) { bestD = d; best = [v]; } else if (d === bestD) best.push(v);
+    }
+    if (best.length > 1) {                // "coinn": coin or coins is the same word. Otherwise a typo more often drops a
+      const stems = new Set(best.map((v) => v.replace(/e?s$/, "")));          // letter ("pickr": picker, not pick)
+      if (stems.size > 1) {
+        const longer = best.filter((v) => v.length >= w.length);
+        if (longer.length === 1) best = longer;
+        else { const first = best.filter((v) => v[0] === w[0]); if (first.length !== 1) return ""; best = first; }
+      }
+      else best.sort((a, b) => a.length - b.length);
+    }
+    return best[0] || "";
+  }
+  // The search with its misspelt keywords fixed, or null when nothing changed
+  function fixWords(text, vocab) {
+    let changed = false;
+    const out = text.split(" ").map((w) => { const v = nearest(w, vocab); if (v) changed = true; return v || w; });
+    return changed ? out.join(" ") : null;
+  }
+  // The question words classify() listens for
+  const Q_VOCAB = new Set(/*VOCAB*/"what whats why how when where who whom whose which explain define definition describe compare comparison difference meaning summarize summarise summary guide ways best tips steps history overview versus between should could would does have pros cons explained simple terms beginners step possible legal worth safe much many long often happens"/*/VOCAB*/.split(" "));
   const NAV = new Set(("youtube gmail facebook instagram reddit amazon netflix twitter x github google outlook hotmail " +
     "wikipedia spotify twitch linkedin tiktok whatsapp discord ebay paypal yahoo bing maps translate weather news login " +
     "chatgpt claude proton protonmail tuta tutanota bitwarden startpage duckduckgo brave firefox chrome steam epic " +
@@ -233,7 +286,14 @@
   const NO_AI = /(^|\s)(site|inurl|intitle|filetype|ext):|^https?:\/\/|^www\.|^\S+\.(com|org|net|io|ca|co|uk|de|fr|nl|app|dev|gov|edu|ai|tv|me|gg|xyz)(\/\S*)?$|\b(login|log in|sign in|signin|sign up|download|near me|open now|coupon|promo code|tickets?|lyrics|torrent)\b/;
   const MATH = /^[\d\s.+\-*/^()%,=x×÷]+$/;
 
+  // A question with a misspelt question word ("waht is", "diffrence between") counts as the question it is.
   function classify(query) {
+    const c = classifyAsTyped(query);
+    if (c !== "offer") return c;
+    const f = fixWords(query.toLowerCase().replace(/\s+/g, " ").trim(), Q_VOCAB);
+    return f && classifyAsTyped(f) === "auto" ? "auto" : c;
+  }
+  function classifyAsTyped(query) {
     const s = query.toLowerCase().replace(/\s+/g, " ").trim();
     if (s.length < 2 || MATH.test(s) || NO_AI.test(s)) return "none";
     const words = s.split(" ");

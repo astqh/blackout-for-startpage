@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         F1 card for Startpage
 // @namespace    blackout-for-startpage/f1
-// @version      1.3.2
+// @version      1.3.3
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -57,6 +57,60 @@
   };
   const $ = (sel, root = document) => root.querySelector(sel);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---------------------------------------------------------------- typos in keywords
+  // "5 minut timer", "spead test": a word of 4+ letters that isn't a keyword here is swapped for the one keyword it's
+  // closest to (one letter off, or two for words of 7+ letters, a swap of two letters counting as one), unless it is
+  // an everyday word itself (COMMON, made by tests/make-common.js from a list of common English words). Searches are
+  // always tried as typed first, so exact searches work exactly as before; this only rescues near-misses.
+  const COMMON = new Set(/*COMMON*/"state last read full part ebay terms american text rate times quality print point america status month star baby term able drive bill mark construction paul face brand king river started role cable reason spring stars bring canadian positive greater session mailing pack winter rape dark grant australian laws auction ball pain practices marine reasons smart tables stated stats alert spam null springs married sharing rare practical rings drives positions prints americans hole parks dinner bell sporting costa poll portion starts deliver becoming contractor sterling rice scheduled sending resorts bargain writers mapping granted spending treat pull contractors stable scan bulk para driven grace monster inner wing instructor derived sand alberta mexican winners sean invited rack maria stewart fred spanking labs diverse sole schedules deutsch spin stages mounted pace carl coat opposition petition texts seasons reed beam trace romania greatly constructed calendars pointer rivers katrina steam sing carol qualifications pointed seasonal resulted equally tablet untitled starring cole tale justin arabic weekends cargo starter races delivers qualify mario tears seating tire span stuart staying streams landing stat pope tile construct stunning audi staffing statutes sodium grip carlos scanning polo startup suzuki unified timer tablets lace poly homeland championships incoming grande marion estates hull tide rand sans ping rage hungry gilbert pork instructors reprint reid marking mime usda skating grad pale tear nest stan stating pose resumes lime spas laos"/*/COMMON*/.split(" "));
+  function editDistance(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev2 = null, prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let low = i;
+      for (let j = 1; j <= b.length; j++) {
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (prev2 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur.push(v); if (v < low) low = v;
+      }
+      if (low > max) return max + 1;
+      prev2 = prev; prev = cur;
+    }
+    return prev[b.length];
+  }
+  const reach = (w) => (w.length >= 7 ? 2 : 1);
+  // The keyword a misspelt word stands for, or "" (none close enough, or two different ones equally close)
+  function nearest(w, vocab) {
+    if (w.length < 4 || !/^[a-z]+$/.test(w) || vocab.has(w) || COMMON.has(w)) return "";
+    const max = reach(w);
+    let best = [], bestD = max + 1;
+    for (const v of vocab) {
+      if (v.length < 3 || Math.abs(v.length - w.length) > max) continue;
+      const d = editDistance(w, v, max);
+      if (d > max) continue;
+      if (d < bestD) { bestD = d; best = [v]; } else if (d === bestD) best.push(v);
+    }
+    if (best.length > 1) {                // "coinn": coin or coins is the same word. Otherwise a typo more often drops a
+      const stems = new Set(best.map((v) => v.replace(/e?s$/, "")));          // letter ("pickr": picker, not pick)
+      if (stems.size > 1) {
+        const longer = best.filter((v) => v.length >= w.length);
+        if (longer.length === 1) best = longer;
+        else { const first = best.filter((v) => v[0] === w[0]); if (first.length !== 1) return ""; best = first; }
+      }
+      else best.sort((a, b) => a.length - b.length);
+    }
+    return best[0] || "";
+  }
+  // The search with its misspelt keywords fixed, or null when nothing changed
+  function fixWords(text, vocab) {
+    let changed = false;
+    const out = text.split(" ").map((w) => { const v = nearest(w, vocab); if (v) changed = true; return v || w; });
+    return changed ? out.join(" ") : null;
+  }
+  // The words parseQuery listens for; Grand Prix names are added from the season's calendar when one is matched.
+  const F1_VOCAB = new Set(/*VOCAB*/"formula grand prix qualifying quali qualy qualification practice sprint shootout race results result winner podium classification standings standing championship constructors constructor drivers driver teams team points leaderboard table calendar schedule season timetable start time next upcoming weekend pole position grid starting"/*/VOCAB*/.split(" "));
   const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const key = (s) => norm(s).replace(/ /g, "");
 
@@ -714,8 +768,12 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
     const query = ((box && box.value) || new URLSearchParams(location.search).get("query") || new URLSearchParams(location.search).get("q") || "").trim();
     const cat = $('#search input[name="cat"]');
     if (!query || (cat && cat.value && cat.value !== "web")) return;
-    const q = parseQuery(query);
-    const intent = q.strong || q.session || q.standings || q.schedule;
+    let q = parseQuery(query);
+    let intent = q.strong || q.session || q.standings || q.schedule;
+    if (!intent) {                                           // "monza qualifiyng", "f1 standigns": misspelt keywords
+      const f = fixWords(norm(query), F1_VOCAB);
+      if (f) { q = parseQuery(f); intent = q.strong || q.session || q.standings || q.schedule; }
+    }
     if (!intent || q.words > 7) return;                    // not an F1-looking search: no network at all
     const thisYear = new Date().getFullYear();
     const season = q.year || thisYear;
@@ -723,6 +781,12 @@ tbody tr:hover td { background: var(--sp-surface-2, rgba(127,127,127,.07)); }
     try { races = await seasonSchedule(season); } catch (e) { return; }
     if (!races.length && !q.year) { try { races = await seasonSchedule(season - 1); } catch (e) { return; } }
     let race = matchRace(races, q.s);
+    if (!race) {                                             // "silverstne results": a misspelt Grand Prix or place
+      const words = new Set(F1_VOCAB);
+      for (const r of races) for (const a of aliasesFor(r)) for (const w of a.split(" ")) words.add(w);
+      const f = fixWords(q.s.trim(), words);
+      if (f) race = matchRace(races, " " + f + " ");
+    }
     const matched = !!race;
     if (!race && !q.strong) return;                          // "race condition", "standings" alone: not F1
     if (!mount()) return;
