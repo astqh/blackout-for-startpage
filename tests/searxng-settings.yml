@@ -14,3 +14,7 @@ engines:
     engine: blackout_test
     shortcut: bt
     disabled: false
+  - name: blackouttestimages
+    engine: blackout_test_images
+    shortcut: bti
+    disabled: false

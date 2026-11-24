@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tweaks for Startpage
 // @namespace    blackout-for-startpage/tweaks
-// @version      1.2.1
+// @version      1.3.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -42,7 +42,7 @@
   const RESULT = SP ? ".w-gl > .result" : ':is(#urls > .result, #urls > [class*="template_group_"] > .result):not(.result-images)';
   const own = (a) => (SP ? /(^|\.)startpage\.com$/i.test(a.hostname) : a.hostname === location.hostname);
 
-  const DEFAULTS = { sameTab: true, noAdblockBanner: true, noPrivateBadge: true, tools: true, keys: true, anonInline: false };
+  const DEFAULTS = { sameTab: true, noAdblockBanner: true, noPrivateBadge: true, tools: true, keys: true, anonInline: false, images: true, imgDirect: false };
   const S = Object.assign({}, DEFAULTS, GM_getValue("settings", {}));
   const save = () => GM_setValue("settings", S);
   const SITES = Object.assign({ hidden: [], pinned: [] }, GM_getValue("sites", {}));
@@ -526,15 +526,149 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
     if (!SP) e.stopImmediatePropagation();
   }, !SP);
 
+  // ---------------------------------------------------------------- image results (SearXNG)
+  // SearXNG shows each picture as a small thumbnail from the engine that found it (often only 100-150 px, stretched
+  // and blurry) in short rows, with the same picture repeated at other sizes, in the order the engines' lists were
+  // merged. Here: rows twice as tall that keep each picture's shape, a sharp preview where the thumbnail is too small
+  // (the full picture, through the instance's own image proxy, only near the screen and not for huge files),
+  // duplicates hidden (the largest copy kept), and a gentler order: pictures whose title has the search words, or
+  // that several engines found, move up; tiny pictures, thin strips and Instagram crawler links move down.
+  // With the instance passing pictures through itself (its "image proxy"), nothing new is contacted. Without it, a
+  // sharper preview means fetching the picture from its site, so that is a separate switch, off unless you turn it on.
+  const IMG_CSS = `
+.spt-img { --spt-row: 190px; display: flex !important; flex-wrap: wrap !important; gap: 16px 8px !important; align-items: flex-start !important; grid-template-columns: none !important; }
+.spt-img::after { content: ""; flex-grow: 100000; }
+.spt-img > article.result-images { flex: calc(var(--ar, 1.33) * 100) 1 calc(var(--ar, 1.33) * var(--spt-row)) !important; max-width: calc(var(--ar, 1.33) * var(--spt-row) * 1.7) !important;
+  width: auto !important; min-width: 0 !important; height: auto !important; margin: 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; position: relative; }
+.spt-img > article.result-images[data-spt-dup] { display: none !important; }
+.spt-img > article.result-images > a:first-child { display: block !important; width: 100% !important; height: auto !important; padding: 0 !important; margin: 0 !important; background: none !important; border: 0 !important; position: relative; text-decoration: none !important; }
+.spt-img > article.result-images img.image_thumbnail { display: block !important; width: 100% !important; height: var(--spt-row) !important; max-width: none !important; max-height: none !important; margin: 0 !important; padding: 0 !important;
+  object-fit: cover !important; border-radius: 10px !important; background: rgba(127,127,127,.14) !important; transition: filter .25s; }
+.spt-img > article.result-images:hover img.image_thumbnail { filter: brightness(1.08); }
+.spt-img > article.result-images .image_resolution { position: absolute !important; top: 8px !important; bottom: auto !important; left: auto !important; right: 8px !important; margin: 0 !important; padding: 2px 7px !important; border-radius: 999px !important;
+  font-size: 11px !important; line-height: 1.5 !important; background: rgba(0,0,0,.62) !important; color: #fff !important; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.spt-img > article.result-images:hover .image_resolution, .spt-img > article.result-images:focus-within .image_resolution { opacity: 1; }
+.spt-img > article.result-images .title, .spt-img > article.result-images .source { position: static !important; width: auto !important; }
+.spt-img > article.result-images .title { display: block !important; margin: 7px 2px 0 !important; padding: 0 !important; font-size: 13px !important; line-height: 1.3 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; color: var(--sp-ink, inherit) !important; }
+.spt-img > article.result-images .source { display: block !important; margin: 1px 2px 0 !important; padding: 0 !important; font-size: 11.5px !important; line-height: 1.3 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; color: var(--sp-muted, inherit) !important; opacity: .85; }
+.spt-img-note { flex-basis: 100%; order: 99; font-size: 12.5px; color: var(--sp-muted, inherit); opacity: .9; }
+@media (max-width: 600px) { .spt-img { --spt-row: 128px; gap: 12px 6px !important; } .spt-img > article.result-images { max-width: none !important; } }`;
+  const IMG_RESULT = "article.result-images";
+  // the shape and size of a picture: SearXNG's "1920 x 1080", else the thumbnail's own size
+  function imgSize(a) {
+    const m = /(\d{2,5})\s*[x×]\s*(\d{2,5})/.exec((a.querySelector(".image_resolution") || {}).textContent || "");
+    if (m) return { w: +m[1], h: +m[2] };
+    const t = a.querySelector("img.image_thumbnail");
+    return t && t.naturalWidth ? { w: t.naturalWidth, h: t.naturalHeight } : null;
+  }
+  const fullOf = (a) => { const d = a.querySelector(".detail img[data-src]"); const v = d && d.getAttribute("data-src"); try { return v ? new URL(v, location.href) : null; } catch (e) { return null; } };
+  const words = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[\p{L}\p{N}]{2,}/gu) || [];
+  const IMG_STOP = new Set("the and for with from images image pictures picture photos photo of in on at to a an".split(" "));
+  // duplicates: the same title on the same site, or the same picture address
+  function dupKey(a) {
+    const title = words((a.querySelector(".title") || {}).textContent || "").join(" ").slice(0, 80), host = ((a.querySelector(".source") || {}).textContent || "").trim().replace(/^www\./, "");
+    return title && host ? "t:" + host + "|" + title : "";
+  }
+  function picKey(a) { const f = fullOf(a); if (!f) return ""; const inner = f.searchParams.get("url"); try { const u = new URL(inner || f.href); return "p:" + u.host + u.pathname; } catch (e) { return "p:" + f.href; } }
+  // how much to move a picture, in places (positive = up)
+  function imgBonus(a, terms) {
+    const title = words(((a.querySelector(".title") || {}).textContent || "") + " " + ((a.querySelector(".result-url a") || {}).textContent || ""));
+    const has = terms.filter((t) => title.some((w) => w === t || (t.length > 3 && w.startsWith(t)))).length;
+    const engines = (((a.querySelector(".result-engines") || {}).textContent || "").split(":").slice(1).join(":").split(",").filter((x) => x.trim())).length;
+    let b = 0;
+    if (terms.length) b += has === terms.length ? 8 : has >= Math.ceil(terms.length / 2) ? 3 : -6;
+    if (engines >= 2) b += 4;
+    const j = junk(a);
+    if (j === "tiny") b -= 14; else if (j === "strip") b -= 12; else if (j === "crawler") b -= 10;
+    return b;
+  }
+  // pictures that are rarely what you're after: tiny, a thin strip (banners), an Instagram crawler link
+  function junk(a) {
+    const size = imgSize(a), href = ((a.querySelector("a") || {}).href || "") + " " + ((a.querySelector(".result-url a") || {}).href || "");   // picture or page
+    if (size && Math.min(size.w, size.h) < 300) return "tiny";
+    if (size && (size.w / size.h > 3.2 || size.w / size.h < 0.31)) return "strip";
+    return /lookaside\.instagram\.com\/seo\//.test(href) ? "crawler" : "";
+  }
+  // sharper previews, a few at a time, only near the screen
+  let sharpQueue = [], sharpBusy = 0, sharpObserver = null;
+  const SHARP_MAX = 4;
+  function sharpen(a) {
+    const t = a.querySelector("img.image_thumbnail"), f = fullOf(a);
+    if (!t || !f || t.dataset.sptSharp || !t.naturalHeight || junk(a)) return;      // no downloads for those
+    if (f.origin !== location.origin && !S.imgDirect) return;            // only through the instance's own proxy
+    const size = imgSize(a), need = t.getBoundingClientRect().height * (window.devicePixelRatio || 1);
+    if (t.naturalHeight >= need * 0.9 || (size && Math.max(size.w, size.h) > 5000)) return;   // sharp enough, or huge
+    t.dataset.sptSharp = "1";
+    sharpQueue.push(() => new Promise((done) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => { if (img.naturalHeight > t.naturalHeight) t.src = img.src; done(); };
+      img.onerror = () => done();
+      img.src = f.href;
+    }));
+    pumpSharp();
+  }
+  function pumpSharp() {
+    while (sharpBusy < SHARP_MAX && sharpQueue.length) { sharpBusy++; sharpQueue.shift()().then(() => { sharpBusy--; pumpSharp(); }); }
+  }
+  function imageResults() {
+    if (SP || !S.images) return;
+    const containers = new Set(Array.from(document.querySelectorAll("#urls > " + IMG_RESULT + ", #urls > .template_group_images > " + IMG_RESULT)).map((a) => a.parentElement));
+    const terms = words(getQueryText()).filter((w) => !IMG_STOP.has(w));
+    for (const box of containers) {
+      const items = Array.from(box.children).filter((a) => a.matches(IMG_RESULT) && !a.hasAttribute("data-spt-seen"));
+      if (!items.length) continue;
+      box.classList.add("spt-img");
+      // each picture keeps its shape in the rows
+      for (const a of items) {
+        a.setAttribute("data-spt-seen", "");
+        const size = imgSize(a);
+        if (size) a.style.setProperty("--ar", Math.max(0.5, Math.min(2.4, size.w / size.h)).toFixed(3));
+        const t = a.querySelector("img.image_thumbnail");
+        if (t && !size) t.addEventListener("load", () => { const z = imgSize(a); if (z) a.style.setProperty("--ar", Math.max(0.5, Math.min(2.4, z.w / z.h)).toFixed(3)); }, { once: true });
+      }
+      // duplicates: keep the largest copy, in the place of the first one
+      const seen = new Map(Array.from(box.querySelectorAll(":scope > " + IMG_RESULT + "[data-spt-seen]:not([data-spt-dup])")).filter((a) => !items.includes(a)).flatMap((a) => [[dupKey(a), a], [picKey(a), a]]).filter(([k]) => k));
+      let hidden = 0;
+      for (const a of items) {
+        const keys = [dupKey(a), picKey(a)].filter(Boolean), first = keys.map((k) => seen.get(k)).find(Boolean);
+        if (!first) { keys.forEach((k) => seen.set(k, a)); continue; }
+        const big = (x) => { const z = imgSize(x); return z ? z.w * z.h : 0; };
+        if (big(a) > big(first)) { first.before(a); first.setAttribute("data-spt-dup", ""); keys.concat([dupKey(first), picKey(first)]).filter(Boolean).forEach((k) => seen.set(k, a)); }
+        else a.setAttribute("data-spt-dup", "");
+        hidden++;
+      }
+      // a gentler order for this batch: each picture's place, moved by its bonus
+      const batch = Array.from(box.children).filter((a) => items.includes(a) && !a.hasAttribute("data-spt-dup"));
+      const first = batch[0];
+      const ranked = batch.map((a, i) => ({ a, s: i - imgBonus(a, terms) })).sort((x, y) => x.s - y.s);
+      const marker = document.createComment("spt");
+      if (first) first.before(marker);
+      for (const { a } of ranked) marker.before(a);
+      marker.remove();
+      if (hidden) {
+        let note = box.querySelector(":scope > .spt-img-note");
+        if (!note) { note = document.createElement("p"); note.className = "spt-img-note"; box.append(note); }
+        const n = box.querySelectorAll(":scope > [data-spt-dup]").length;
+        note.textContent = n + (n === 1 ? " copy of a picture already shown was left out." : " copies of pictures already shown were left out.");
+      }
+      if (!sharpObserver) sharpObserver = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { sharpObserver.unobserve(e.target); const a = e.target.closest(IMG_RESULT); const t = e.target; if (t.complete) sharpen(a); else t.addEventListener("load", () => sharpen(a), { once: true }); } }), { rootMargin: "400px 0px" });
+      for (const a of items) { const t = a.querySelector("img.image_thumbnail"); if (t && !a.hasAttribute("data-spt-dup")) sharpObserver.observe(t); }
+    }
+    if (containers.size && !document.getElementById("spt-img-css")) { const st = document.createElement("style"); st.id = "spt-img-css"; st.textContent = IMG_CSS; document.documentElement.append(st); }
+  }
+  const getQueryText = () => { const q = document.querySelector("#q"); return (q && q.value) || new URLSearchParams(location.search).get("q") || ""; };
+
   // ---------------------------------------------------------------- start
   const onReady = () => {
     addCss();                                  // put back if the page removed it
     hideBanner(document.body);
     if (S.tools) apply();                      // attributes only (pinned, hidden) so nothing flashes
+    imageResults();
     let queued = false;
     new MutationObserver(() => {
       if (queued) return; queued = true;
-      requestAnimationFrame(() => { queued = false; addCss(); hideBanner(document.body); if (S.tools) apply(); });
+      requestAnimationFrame(() => { queued = false; addCss(); hideBanner(document.body); if (S.tools) apply(); imageResults(); });
     }).observe(document.body, { childList: true, subtree: true });
     // ⋮ buttons go in once Startpage has finished building the page (adding them earlier makes it rebuild)
     const goLive = () => setTimeout(() => { live = true; if (S.tools) { window.dispatchEvent(new CustomEvent("sp-ai:ping")); apply(); } }, 300);
@@ -549,8 +683,11 @@ button:focus-visible, .x:focus-visible { outline: 2px solid var(--acc); outline-
     tools: SP ? "⋮ menu on results (summary, Anonymous View, pin, hide)" : "⋮ menu on results (summary, archived copy, pin, hide)",
     keys: "Keyboard keys (press ? on a results page)",
     anonInline: "Also show \"Visit in Anonymous View\" under each result",
+    images: "Image results: bigger, sharper, no duplicates, better order",
+    imgDirect: "…sharper previews from the sites themselves when this instance doesn't pass pictures through itself",
   };
   if (!SP) for (const k of ["noAdblockBanner", "noPrivateBadge", "anonInline"]) delete LABELS[k];   // Startpage's own page parts
+  else for (const k of ["images", "imgDirect"]) delete LABELS[k];                                    // SearXNG's
   Object.keys(LABELS).forEach((k) => GM_registerMenuCommand((S[k] ? "✓ " : "✗ ") + LABELS[k] + " (click to switch, then reload)", () => { S[k] = !S[k]; save(); location.reload(); }));
   GM_registerMenuCommand("Hidden and pinned sites…", () => openSites());
 })();

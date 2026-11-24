@@ -3,6 +3,41 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.9.0 · 24 November 2026 (SearXNG)
+
+Image results on SearXNG. Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on a SearXNG
+running on the test machine (with a test image engine) and on the public instance priv.au with real pictures, on a
+normal and a high-resolution screen. Startpage's image results aren't changed: startpage.com can't be reached from
+the test machine.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.2 |
+| Blackout theme for SearXNG | 1.0.2 |
+| Tweaks | 1.3.0 |
+| Home widgets | 1.3.0 |
+| Instant Answer | 2.7.1 |
+| F1 card | 1.4.1 |
+| Quick answers | 1.4.0 |
+
+Measured on priv.au first: about half the previews were 84–150 px thumbnails stretched over their tiles, the
+pictures were 104 px tall, about one in five results was a copy of a picture already shown, and the order simply
+alternated between the engines.
+
+- **Bigger, even rows**: pictures are 190 px tall (128 px on phones), keep their shape, and fill each row edge to edge,
+  with the title and site on one line each underneath (they used to run into each other). The size shows on hover.
+- **Sharp previews**: when a thumbnail is too small for its tile (taking high-resolution screens into account), the
+  full picture is shown instead, a few at a time and only near the screen, never for very large files, tiny pictures
+  or banners. It comes through the instance's own image proxy, so nothing new is contacted; on priv.au the first 12
+  pictures were all sharp on a high-resolution screen. If an instance doesn't pass pictures through itself, a
+  separate switch (off by default) lets them come from the sites.
+- **No duplicates**: copies of a picture already shown are left out, keeping the largest; a line says how many
+  (22 of 103 on priv.au for "golden retriever puppy").
+- **A better order**: pictures whose title has your search words, or that several engines found, move up; tiny
+  pictures, thin strips and Instagram crawler links move down. Otherwise the engines' order stays.
+- SearXNG's large view (click a picture) works as before. All of it can be turned off in the Violentmonkey menu
+  ("Image results: …").
+
 ## 1.8.0 · 24 November 2026 (SearXNG)
 
 Misspelt searches. Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on sample Startpage

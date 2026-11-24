@@ -14,7 +14,8 @@ run ia-bench.js --check
 if curl -s -o /dev/null http://127.0.0.1:8888/ && [ -f harness.js ]; then
   run harness.js
   run sx-align.js
+  run images.js
   run "speed.js" searxng
 fi
-[ -f privau.js ] && [ "$LIVE_SITES" = 1 ] && run privau.js
+[ -f privau.js ] && [ "$LIVE_SITES" = 1 ] && run privau.js && run images.js live
 exit $fail

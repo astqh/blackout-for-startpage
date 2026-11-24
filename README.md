@@ -229,6 +229,9 @@ address like `http://localhost:8888`. It was built for SearXNG's standard look (
 - **What's different from Startpage.** Open in Anonymous View becomes **Open the archived copy** (SearXNG's "cached"
   link), or **Open through the proxy** when your instance has one. The shortcut to Startpage's translator is
   Startpage's own, so it's off on SearXNG. The uBlock filters below are only for Startpage.
+- **Image results** are bigger and sharper: even rows that keep each picture's shape, the full picture instead of
+  a blurry thumbnail (through the instance's own image proxy, only near the screen), copies of the same picture left
+  out, and pictures that match your search moved up. Switch it in the Violentmonkey menu.
 - **Did you mean** asks the instance's own autocomplete for a spelling (the service you picked in its preferences;
   nothing when autocomplete is off), only when a search finds almost nothing.
 - **Keys.** SearXNG has keyboard keys of its own. On its results pages the keys listed under [Tweaks](#tweaks) win,

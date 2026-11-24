@@ -13,6 +13,13 @@ http.createServer((req, res) => {
   if (u.pathname === "/ctl") { mode = u.searchParams.get("mode") || "normal"; return res.end(mode); }
   if (u.pathname === "/log") { res.setHeader("Content-Type", "application/json"); return res.end(JSON.stringify(log)); }
   if (u.pathname === "/reset") { log = []; mode = "normal"; return res.end("ok"); }
+  // /img/<w>x<h>.svg: a picture of that size, for the image tests (counted in /log as "img")
+  const im = /^\/img\/(\d+)x(\d+)\.svg$/.exec(u.pathname);
+  if (im) {
+    log.push({ t: Date.now(), path: "img", w: +im[1], h: +im[2], i: u.searchParams.get("i") });
+    res.setHeader("Content-Type", "image/svg+xml"); res.setHeader("Cache-Control", "no-store");
+    return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="' + im[1] + '" height="' + im[2] + '" viewBox="0 0 ' + im[1] + " " + im[2] + '"><rect width="100%" height="100%" fill="hsl(' + ((+u.searchParams.get("i") || 1) * 47 % 360) + ',55%,45%)"/><text x="50%" y="50%" fill="#fff" font-size="' + Math.max(8, Math.round(Math.min(+im[1], +im[2]) / 6)) + '" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">' + im[1] + "×" + im[2] + "</text></svg>");
+  }
   let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
     let j = {}; try { j = JSON.parse(body); } catch (e) {}
     const sys = ((j.messages || [])[0] || {}).content || "";

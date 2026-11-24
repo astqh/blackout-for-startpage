@@ -21,6 +21,7 @@ For the SearXNG suites, a SearXNG on 127.0.0.1:8888 with the offline test engine
 git clone --depth 1 https://github.com/searxng/searxng.git && cd searxng
 python3 -m venv ../venv && ../venv/bin/pip install -r requirements.txt
 cp ../blackout-for-startpage/tests/searxng-test-engine.py searx/engines/blackout_test.py
+cp ../blackout-for-startpage/tests/searxng-test-images.py searx/engines/blackout_test_images.py
 SEARXNG_SETTINGS_PATH=../blackout-for-startpage/tests/searxng-settings.yml ../venv/bin/python -m searx.webapp
 ```
 
@@ -38,6 +39,7 @@ SEARXNG_SETTINGS_PATH=../blackout-for-startpage/tests/searxng-settings.yml ../ve
 | `harness.js` | Everything on the local SearXNG: theme, home, ⋮ menu, keys, quick cards, Instant Answer and its allow step, typos, Did you mean |
 | `sx-align.js`, `sx-ui.js` | SearXNG: boxes line up with the results; Instant Answer's interface with and without the theme |
 | `privau.js` | The same on the public instance priv.au, with real results (`LIVE_SITES=1 tests/run-all.sh` includes it) |
+| `images.js` | Image results on SearXNG: rows, sharp previews, duplicates, order, the large view (`live` adds priv.au) |
 
 `node tests/ia.js rel long` adds the 90-second "no reply at all" check.
 
