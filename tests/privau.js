@@ -1,0 +1,50 @@
+// The same checks on the public instance priv.au, searching through its own search box like a person would.
+const { initScript, launch, ai, reporter, IAtext, IAsettings } = require("./lib");
+const { check, done } = reporter();
+const BASE = "https://priv.au";
+(async () => {
+  const browser = await launch();
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, locale: "en-US", bypassCSP: true,   // GM_xmlhttpRequest is not bound by the page's rules
+    userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" });
+  await ctx.addInitScript(initScript("searxng"));
+  const page = await ctx.newPage(); const errors = []; page.on("pageerror", (e) => errors.push(e.message));
+  const search = async (q) => { await page.fill("#q", q); await Promise.all([page.waitForNavigation({ timeout: 30000 }), page.press("#q", "Enter")]); await page.waitForTimeout(3500); };
+  await page.goto(BASE + "/"); await page.waitForTimeout(2500); await page.screenshot({ path: "shots/privau-home.png" }); console.log("home:", await page.title(), await page.evaluate(() => !!document.querySelector("#q")));
+  const home = await page.evaluate(() => ({ bg: getComputedStyle(document.body).backgroundColor, widgets: document.getElementById("sp-home")?.shadowRoot.querySelectorAll(".grid > .card").length || 0, after: document.getElementById("sp-home")?.previousElementSibling?.id }));
+  check("priv.au home: theme black, widgets under the search box", home.bg === "rgb(0, 0, 0)" && home.widgets >= 3 && home.after === "search", JSON.stringify(home));
+  await search("why is the sky blue");
+  const r = await page.evaluate(() => ({ n: document.querySelectorAll("#urls .result:not(.result-images)").length, dots: Array.from(document.querySelectorAll("#urls .result:not(.result-images)")).filter((x) => x.querySelector("span[style*='float']")).length }));
+  check("priv.au results: real results, ⋮ on every one", r.n >= 5 && r.dots === r.n, JSON.stringify(r));
+  check("instant answer: invite shown", /Turn on Instant Answer/.test(await IAtext(page)));
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("j"); await page.keyboard.press("j"); await page.keyboard.press("p"); await page.waitForTimeout(300);
+  const pin = await page.evaluate(() => { const p = document.querySelector("#urls .result[data-spt-pin]"); return p ? { order: getComputedStyle(p).order, first: Array.from(document.querySelectorAll("#urls .result")).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0] === p } : null; });
+  check("tweaks: j j p pins the second result's site to the top", pin && pin.order === "-1" && pin.first, JSON.stringify(pin));
+  await page.keyboard.press("p"); await page.waitForTimeout(200);
+  await page.evaluate((s) => { localStorage.setItem("__gm_instant-answer:settings", s); localStorage.removeItem("__gm_instant-answer:searxngHosts"); localStorage.removeItem("__gm_instant-answer:cache"); }, IAsettings());
+  await ai.reset();
+  await page.reload(); await page.waitForTimeout(4000);
+  check("instant answer: asks before using priv.au, nothing sent", /Use Instant Answer on priv\.au/.test(await IAtext(page)) && (await ai.log()).length === 0);
+  await page.evaluate(() => document.getElementById("sp-instant-answer").shadowRoot.querySelector("button.chip").click());
+  await page.waitForTimeout(4000);
+  check("instant answer: answer shown", /Rayleigh/.test(await IAtext(page)));
+  let log = await ai.log();
+  check("instant answer: priv.au results sent as sources", log.length && /\[5\]/.test(log[log.length - 1].messages[1].content));
+  await page.evaluate(() => { const i = document.getElementById("sp-instant-answer").shadowRoot.querySelector(".ask input"); i.value = "and what about sunsets?"; i.closest("form").requestSubmit(); });
+  await page.waitForTimeout(9000);
+  const after = await IAtext(page);
+  log = await ai.log();
+  const failed = /search didn't work \(([^)]*)\)/.exec(after);
+  check("instant answer: follow-up searched priv.au and got its sources", /Searched SearXNG for/.test(after) && !failed && (log[log.length - 1].messages.map((m) => m.content).join("\n").match(/^\[\d+\] /gm) || []).length > 8, failed ? failed[0] : "");
+  await search("flip a coin");
+  check("quick: coin flip card inside #urls, above Instant Answer", await page.evaluate(() => { const k = Array.from(document.querySelector("#urls").children).map((e) => e.id); return k.includes("sp-quick-widget") && (!k.includes("sp-instant-answer") || k.indexOf("sp-quick-widget") < k.indexOf("sp-instant-answer")); }));
+  await page.click("#categories button[name='category_images'], #categories label[for='checkbox_images']").catch(() => {});
+  await page.waitForTimeout(4000);
+  const img = await page.evaluate(() => ({ imgs: document.querySelectorAll("#urls .result-images").length, dots: document.querySelectorAll("#urls span[style*='float']").length }));
+  check("images tab: picture results left alone", img.imgs > 0 && img.dots === 0, JSON.stringify(img));
+  // "Did you mean" asks the instance's own autocomplete: check that priv.au's answers a misspelt search
+  const sug = await page.evaluate(() => fetch("/autocompleter?q=" + encodeURIComponent("javscript closurs"), { headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" } }).then((r) => r.ok ? r.json() : r.status).catch((e) => String(e)));
+  check("priv.au autocomplete answers a misspelt search with a spelling", Array.isArray(sug) && JSON.stringify(sug).toLowerCase().includes("javascript"), JSON.stringify(sug).slice(0, 160));
+  check("no page errors", !errors.length, errors.join(" | "));
+  await browser.close(); done();
+})().catch((e) => { console.error(e); done(); process.exitCode = 1; });

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick answers for Startpage
 // @namespace    blackout-for-startpage/quick
-// @version      1.3.1
+// @version      1.4.0
 // @license      MIT
 // @homepageURL  https://github.com/astqh/blackout-for-startpage
 // @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -49,11 +49,63 @@
   const EURO = "AT BE HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES".split(" ");
   const localCurrency = () => ({ CA: "CAD", US: "USD", GB: "GBP", AU: "AUD", NZ: "NZD", JP: "JPY", CH: "CHF", IN: "INR", SE: "SEK", NO: "NOK", DK: "DKK",
     PL: "PLN", CZ: "CZK", HU: "HUF", BR: "BRL", MX: "MXN", ZA: "ZAR", SG: "SGD", HK: "HKD", KR: "KRW", CN: "CNY", TR: "TRY", IL: "ILS" }[REGION] || (EURO.includes(REGION) ? "EUR" : "USD"));
-  const DEFAULTS = { enabled: true, timer: true, sound: true, parcel: true, colour: true, random: true, currency: true, speed: true, gauge: true, translate: true, translateAuto: true, home: localCurrency() };
+  const DEFAULTS = { enabled: true, timer: true, sound: true, parcel: true, colour: true, random: true, currency: true, speed: true, gauge: true, suggest: true, translate: true, translateAuto: true, home: localCurrency() };
   const settings = () => Object.assign({}, DEFAULTS, GM_getValue("settings", {}));
   const saveSettings = (s) => GM_setValue("settings", s);
   const $ = (sel, root = document) => root.querySelector(sel);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---------------------------------------------------------------- typos in keywords
+  // "5 minut timer", "spead test": a word of 4+ letters that isn't a keyword here is swapped for the one keyword it's
+  // closest to (one letter off, or two for words of 7+ letters, a swap of two letters counting as one), unless it is
+  // an everyday word itself (COMMON, made by tests/make-common.js from a list of common English words). Searches are
+  // always tried as typed first, so exact searches work exactly as before; this only rescues near-misses.
+  const COMMON = new Set(/*COMMON*/"that your time news than used last most best read details long version found posts text times content card training join west plan cost medical america east four hand interest head australia trade green collection past land france records downloads sound fact germany toys loss brand king pics port lost tour role lesbian nice band starting song numbers feature deal round networks catalog teaching grand uses rest pack internal race host wife packages african connect selling trading persons tests pink context measures generation generated creek tours talking rank russia cast iron vice truck concept knew frank clip sounds korea bath leads serving finish creation delivered toll convention colors spend americans remains dick concern seek tracks poll leisure concert deliver connections converter checks rear bound threads transaction rice consent contest yours transition latina converted nick philippines generate indonesia seed measured grace cookies pleasure crack picks coins sand seal sick checked lisa pour wiki ranking rack dicke boss ross publish telling bulgaria rick tiger pension franchise reads correction grounds kick meal slip florist francis packard picked doll fails latinas mice vast quiz tracked tops romania tons hang tracker passage headset arabia downloaded steering beads croatia corn artwork connector tail juan starring quit repairs colored connecting chef chuck oils delivers trails iceland pond rolls chad packing colin concerts colors slovenia hung treasure uploaded americas dive audi trick raid timber headers geek randy translated interact slovakia troy latino chick tray thong sucks forming collar terrace trance spelling fist worn tier speeds brandon translations reel buck usgs pest sticker satin tent hindu lasting poet nails deutsche realm quad tracy tract wound conviction serbia rounds usda seekers nest moss italia sherman colon polished mails backing intranet paso pose generators generates ours shipments translator"/*/COMMON*/.split(" "));
+  function editDistance(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev2 = null, prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let low = i;
+      for (let j = 1; j <= b.length; j++) {
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (prev2 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur.push(v); if (v < low) low = v;
+      }
+      if (low > max) return max + 1;
+      prev2 = prev; prev = cur;
+    }
+    return prev[b.length];
+  }
+  const reach = (w) => (w.length >= 7 ? 2 : 1);
+  // The keyword a misspelt word stands for, or "" (none close enough, or two different ones equally close)
+  function nearest(w, vocab) {
+    if (w.length < 4 || !/^[a-z]+$/.test(w) || vocab.has(w) || COMMON.has(w)) return "";
+    const max = reach(w);
+    let best = [], bestD = max + 1;
+    for (const v of vocab) {
+      if (v.length < 3 || Math.abs(v.length - w.length) > max) continue;
+      const d = editDistance(w, v, max);
+      if (d > max) continue;
+      if (d < bestD) { bestD = d; best = [v]; } else if (d === bestD) best.push(v);
+    }
+    if (best.length > 1) {                // "coinn": coin or coins is the same word. Otherwise a typo more often drops a
+      const stems = new Set(best.map((v) => v.replace(/e?s$/, "")));          // letter ("pickr": picker, not pick)
+      if (stems.size > 1) {
+        const longer = best.filter((v) => v.length >= w.length);
+        if (longer.length === 1) best = longer;
+        else { const first = best.filter((v) => v[0] === w[0]); if (first.length !== 1) return ""; best = first; }
+      }
+      else best.sort((a, b) => a.length - b.length);
+    }
+    return best[0] || "";
+  }
+  // The search with its misspelt keywords fixed, or null when nothing changed
+  function fixWords(text, vocab) {
+    let changed = false;
+    const out = text.split(" ").map((w) => { const v = nearest(w, vocab); if (v) changed = true; return v || w; });
+    return changed ? out.join(" ") : null;
+  }
 
   function getQuery() {
     const box = $("#q") || $("input.search-form-input[name=query]");
@@ -267,10 +319,17 @@
     return true;
   }
 
+  // The words the cards listen for, to fix misspelt ones (see "typos in keywords"): the detectors' own words, the
+  // currency words and the language names.
+  let quickVocab = null;
+  const vocab = () => quickVocab || (quickVocab = new Set((/*VOCAB*/"timer countdown pomodoro minute minutes hour hours second seconds flip toss coin heads tails roll dice random number generator integer between pick speed test speedtest internet wifi network broadband connection bandwidth download upload measure check fast track tracking trace parcel package shipment delivery purolator fedex usps canada post colour color picker convert translate translation"/*/VOCAB*/ +
+    " " + Object.keys(CUR_WORDS).join(" ") + " " + Object.keys(LANGS).join(" ")).split(/\s+/).filter((w) => /^[a-z]{3,}$/.test(w))));
   function detect(raw) {
     const t = raw.toLowerCase().replace(/\s+/g, " ").trim(), s = settings();
     if (!t || t.split(" ").length > 9) return null;
-    const hit = parcel(raw, t) || colour(t) || random(t) || speedTest(t) || timer(t) || currency(t) || translation(raw);
+    const find = (r, x) => parcel(r, x) || colour(x) || random(x) || speedTest(x) || timer(x) || currency(x) || translation(r);
+    let hit = find(raw, t);
+    if (!hit) { const f = fixWords(t, vocab()); if (f && (hit = find(f, f))) hit.fixed = f; }    // a misspelt keyword
     if (!hit) return null;
     const on = { parcel: s.parcel, colour: s.colour, random: s.random, timer: s.timer, currency: s.currency, speed: s.speed, translate: s.translate }[hit.type];
     if (!on) return null;
@@ -289,6 +348,8 @@
 .head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 4px 16px; }
 .head .ic { width: 18px; height: 18px; color: var(--acc); flex: none; }
 .head h2 { margin: 0; font-size: 14px; font-weight: 600; flex: 1; min-width: 0; }
+.head h2 .fix { font-weight: 400; color: var(--mut); overflow-wrap: anywhere; }
+.sug { font-size: 17px; margin: 2px 0 12px; overflow-wrap: anywhere; }
 .icon { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 999px; display: inline-grid; place-items: center; color: var(--sp-ink-2, inherit); flex: none; }
 .icon:hover, .icon[aria-expanded="true"] { background: var(--sp-surface-2, rgba(127,127,127,.14)); color: var(--sp-ink, inherit); }
 .icon svg { width: 16px; height: 16px; }
@@ -384,6 +445,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     currency: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>',
     translate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h10M8 3v2M5 5c.6 3.4 2.8 6.2 6 7.6M11 5c-.5 3.6-2.6 6.6-7 8.6"/><path d="m12 21 4.5-10 4.5 10M13.6 17.5h5.8"/></svg>',
     copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+    suggest: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/><path d="M8 10.5h5"/></svg>',
     speed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 18a9 9 0 1 1 15 0"/><path d="m12 13 4-5"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></svg>',
     swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>',
   };
@@ -394,10 +456,14 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     const u = $("#urls"); return u ? [u, u.firstChild] : null;
   }
   // SearXNG without the Blackout theme: line the box up with the text of the results (they have their own padding)
+  // (a search that found nothing: with the edge of SearXNG's "no results" box instead)
   function alignToResults(el) {
-    const r = document.querySelector("#urls > .result, #urls > [class*='template_group_'] > .result"), u = document.querySelector("#urls");
-    if (SP || !el || !r || !u) return;
-    const cs = getComputedStyle(r), x = Math.max(0, Math.round(r.getBoundingClientRect().left - u.getBoundingClientRect().left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth)));
+    const u = document.querySelector("#urls");
+    if (SP || !el || !u) return;
+    const r = document.querySelector("#urls > .result, #urls > [class*='template_group_'] > .result");
+    const box = r || Array.from(u.children).find((c) => !/^(sp-|spt-)/.test(c.id || "") && c.getClientRects().length);
+    const cs = box ? getComputedStyle(box) : null;
+    const x = !box ? 8 : Math.max(0, Math.round(box.getBoundingClientRect().left - u.getBoundingClientRect().left + (r ? parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth) : 0)));
     el.style.marginLeft = el.style.marginRight = x + "px";
   }
   let host = null, root = null, current = null, optsOpen = false;
@@ -426,7 +492,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
   let cleanup = null;
   function remove() { if (cleanup) { cleanup(); cleanup = null; } if (host) { host.remove(); host = null; } }
 
-  const TITLES = { timer: "Timer", parcel: "Track a parcel", colour: "Colour", currency: "Currency", random: "Random", speed: "Internet speed", translate: "Translate" };
+  const TITLES = { timer: "Timer", parcel: "Track a parcel", colour: "Colour", currency: "Currency", random: "Random", speed: "Internet speed", suggest: "Did you mean", translate: "Translate" };
   function shell(hit, title) {
     if (cleanup) { cleanup(); cleanup = null; }
     card().classList.remove("done");
@@ -437,6 +503,7 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
       '<button class="icon x" type="button" title="Hide for this search" aria-label="Hide for this search">' + ICON.close + "</button></div>" +
       '<div class="opts" role="group" aria-label="Quick answer options" hidden></div><div class="body"></div>';
     root.querySelector("h2").textContent = title;
+    if (hit.fixed) { const n = document.createElement("span"); n.className = "fix"; n.textContent = " · for “" + hit.fixed + "”"; root.querySelector("h2").append(n); }
     root.querySelector(".x").addEventListener("click", remove);
     wireOptions();
     return root.querySelector(".body");
@@ -445,7 +512,8 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     const btn = root.querySelector(".gear"), box = root.querySelector(".opts"), s = settings();
     box.innerHTML = [["timer", "Timer (“5 minute timer”)"], ["sound", "Alarm sound when a timer ends"], ["parcel", "Parcel tracking buttons"], ["colour", "Colour preview"],
       ["random", "Coin flip, dice, random number"], ["currency", "Currency (when " + SITE + " has no converter)"],
-      ["speed", "Internet speed test (runs only when you click Start)"], ["gauge", "…with a speedometer"]].concat(SP ? [
+      ["speed", "Internet speed test (runs only when you click Start)"], ["gauge", "…with a speedometer"],
+      ["suggest", "“Did you mean” when a search finds almost nothing"]].concat(SP ? [
       ["translate", "Translation searches → Startpage's translator"], ["translateAuto", "…straight away when the search is clear (otherwise a button)"]] : []).map(([k, l]) =>
       '<label><span>' + l + '</span><input type="checkbox" data-opt="' + k + '"' + (s[k] ? " checked" : "") + "></label>").join("") +
       '<div class="orow"><span>Your currency (for “100 euros”)</span><select data-opt="home" aria-label="Your currency">' +
@@ -739,13 +807,66 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     if (!s.enabled) { remove(); return; }
     if (getCategory() !== "web") return;
     const hit = detect(getQuery());
-    if (!hit) { if (again) remove(); return; }
-    if (!again && hit.type === "translate" && hit.sure && s.translateAuto && canAutoTranslate(getQuery()) && toTranslator(hit, getQuery())) return;
+    if (!hit) { if (again) remove(); suggestSoon(); return; }
+    if (!again && hit.type === "translate" && hit.sure && !hit.fixed && s.translateAuto && canAutoTranslate(getQuery()) && toTranslator(hit, getQuery())) return;
     if (!mount()) return;
     current = hit;
-    ({ parcel: showParcel, colour: showColour, random: showRandom, timer: showTimer, currency: showCurrency, speed: showSpeed, translate: showTranslate })[hit.type](hit);
+    ({ parcel: showParcel, colour: showColour, random: showRandom, timer: showTimer, currency: showCurrency, speed: showSpeed, suggest: showSuggest, translate: showTranslate })[hit.type](hit);
     // Startpage draws its own converter/timer a moment after the page loads; if one turns up, this card goes.
     if (hit.type === "timer" || hit.type === "currency") [600, 1500, 3500].forEach((ms) => setTimeout(() => { if (current === hit && startpageAnswered()) { current = null; remove(); } }, ms));
+  }
+
+  // ---------------------------------------------------------------- "Did you mean" for searches that find almost nothing
+  // Only when the page has fewer than 3 results and the search engine shows no correction of its own. The spelling
+  // comes from the engine's own suggestions (the search already went there): Startpage's, or the SearXNG instance's
+  // autocomplete (the service picked in its preferences; none when it's off). Else from the keyword fixer.
+  const resultCount = () => document.querySelectorAll(SP ? ".w-gl > .result:not(.h)" : "#urls .result").length;
+  const ownCorrection = () => !!document.querySelector(SP ? ".ss-gl-result" : "#corrections");
+  function suggestions(q) {
+    const form = $("#search"), url = SP ? new URL("/suggestions?format=opensearch", location.href)
+      : new URL(((form && form.getAttribute("action")) || "search").replace(/search\/?$/, "autocompleter"), location.href);
+    url.searchParams.set("q", q);
+    return fetch(url.href, { credentials: "same-origin", headers: SP ? { Accept: "application/json" } : { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" } })
+      .then((r) => (r.ok ? r.json() : [])).then((j) => (Array.isArray(j) && Array.isArray(j[1]) ? j[1] : Array.isArray(j) ? j : (j && j.suggestions) || []).map((x) => String(x && (x.text || x.phrase || x.value) || x)))
+      .catch(() => []);
+  }
+  // The suggestion that is a spelling of the search: close to it, but not the same
+  function closest(q, list) {
+    const a = q.toLowerCase().replace(/\s+/g, " ").trim();
+    let best = "", score = 0.34;
+    for (const s of list) {
+      const b = String(s).toLowerCase().replace(/\s+/g, " ").trim();
+      if (!b || b === a) continue;
+      const max = Math.ceil(Math.max(a.length, b.length) * score), d = editDistance(a, b, max), r = d / Math.max(a.length, b.length);
+      if (d <= max && r < score) { score = r; best = b; }
+    }
+    return best;
+  }
+  function suggestSoon() {
+    const st = settings(), q = getQuery();
+    if (!st.enabled || !st.suggest || !q || q.length < 4 || resultCount() >= 3 || ownCorrection()) return;
+    suggestions(q).then((list) => {
+      const best = closest(q, list) || fixWords(q.toLowerCase().replace(/\s+/g, " ").trim(), vocab()) || "";
+      if (!best || current || getQuery() !== q || !mount()) return;
+      current = { type: "suggest", text: best, q };
+      showSuggest(current);
+    });
+  }
+  function showSuggest(hit) {
+    const body = shell(hit, TITLES.suggest);
+    body.innerHTML = '<p class="sug">Did you mean <b></b>?</p><div class="row"><button class="b pri" type="button">Search for it</button></div>' +
+      '<p class="muted" style="margin:10px 0 0">Almost nothing was found for “<span></span>”.</p>';
+    body.querySelector(".sug b").textContent = hit.text;
+    body.querySelector(".muted span").textContent = hit.q;
+    body.querySelector("button").addEventListener("click", () => searchFor(hit.text));
+  }
+  // A new search through the page's own search form, so your search settings still apply
+  function searchFor(text) {
+    const box = $("#q"), form = $("#search");
+    if (!box || !form) return;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(box, text);
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    if (form.requestSubmit) form.requestSubmit(); else form.submit();
   }
 
   // A clear translation search goes to Startpage's translator straight away, without waiting for the results to finish.
@@ -753,12 +874,13 @@ select option { background: var(--sp-surface, Canvas); color: var(--sp-ink, Canv
     const st = settings(), q = getQuery();
     if (!st.enabled || !st.translate || !st.translateAuto || !q || getCategory() !== "web") return;
     const hit = detect(q);
-    if (hit && hit.type === "translate" && hit.sure && canAutoTranslate(q)) toTranslator(hit, q);
+    if (hit && hit.type === "translate" && hit.sure && !hit.fixed && canAutoTranslate(q)) toTranslator(hit, q);
   })();
 
   GM_registerMenuCommand("Quick answers on/off", () => { const s = settings(); s.enabled = !s.enabled; saveSettings(s); if (s.enabled) start(true); else remove(); });
   let tries = 0;
-  const wait = () => { if ($(SP ? ".w-gl .result" : "#urls .result") || tries++ > 40) start(false); else setTimeout(wait, 100); };
+  // (a search that found nothing has an empty list: no need to wait for results that won't come)
+  const wait = () => { if ($(SP ? ".w-gl .result" : "#urls .result") || $(SP ? ".w-gl" : "#urls") || tries++ > 40) start(false); else setTimeout(wait, 100); };
   if (document.readyState === "complete") setTimeout(wait, 50);
   else window.addEventListener("load", () => setTimeout(wait, 50), { once: true });
 })();

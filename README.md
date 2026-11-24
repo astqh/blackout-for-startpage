@@ -21,7 +21,7 @@ Not made by or connected to Startpage, Formula 1, the FIA or any team.
 | **Home widgets** | Clock, weather, shortcuts, notes, calendar, currency, timer and the next F1 race under the search box on the home page. Resize them, and pick your own colours or a picture. | Weather sends the city you type once, then only its map position, to Open-Meteo. Currency asks Frankfurter for the day's rates. |
 | **Instant Answer** | A short answer above your results, written from those results. Continue it as a conversation that can search and read pages. Off until you turn it on. | Only when it's on, and only to the AI service you pick. It gets your search and the titles and descriptions of the results. In a conversation its searches go to Startpage and the pages it reads are fetched from the sites. |
 | **F1 card** | Formula 1 results, tyre strategy, standings and the race weekend schedule in your time zone. | Requests like "2026 round 17 qualifying" to Jolpica-F1 and OpenF1. Never your search. |
-| **Quick answers** | Timer, parcel tracking links, colour preview, coin flip, dice, random numbers, currency, an internet speed test and a shortcut to Startpage's translator. | Currency asks Frankfurter for the day's rates. The speed test, only when you click Start, sends test data to and from Cloudflare. |
+| **Quick answers** | Timer, parcel tracking links, colour preview, coin flip, dice, random numbers, currency, an internet speed test, "Did you mean" for misspelt searches and a shortcut to Startpage's translator. | Currency asks Frankfurter for the day's rates. The speed test, only when you click Start, sends test data to and from Cloudflare. "Did you mean", only when a search finds almost nothing, asks Startpage for its search suggestions. |
 
 There is no server, no account and no tracking. Nothing is ever sent to this project.
 
@@ -196,6 +196,11 @@ out, and if a service says it's busy the card waits at least a minute and shows 
 Try `5 minute timer`, a tracking number like `1Z999AA10123456784`, `#a3c4ff`, `flip a coin`, `roll 2d6`,
 `random number between 1 and 50`, `100 euros` or `speed test`. Each card has its own switch under ⚙.
 
+Small typos still work: `5 minut timer`, `spead test` or `100 eruos` show the card, and it says what it understood
+("for “5 minute timer”"). Everyday words are never changed, so `5 minute time` stays a normal search. When a search
+finds almost nothing and Startpage offers no correction itself, **Did you mean** suggests a spelling from Startpage's
+own search suggestions, with a button to search for it.
+
 The speed test (`speed test`, `test my wifi`, `how fast is my internet`) shows download, upload, latency and jitter,
 with a speedometer that follows the live speed (turn it off under ⚙ on the card). It starts only when you click **Start test** and uses Cloudflare's speed test service (`speed.cloudflare.com`), so
 Cloudflare sees your IP address, as with any site. It moves up to about 80 MB on a fast line, so mind a metered
@@ -224,6 +229,8 @@ address like `http://localhost:8888`. It was built for SearXNG's standard look (
 - **What's different from Startpage.** Open in Anonymous View becomes **Open the archived copy** (SearXNG's "cached"
   link), or **Open through the proxy** when your instance has one. The shortcut to Startpage's translator is
   Startpage's own, so it's off on SearXNG. The uBlock filters below are only for Startpage.
+- **Did you mean** asks the instance's own autocomplete for a spelling (the service you picked in its preferences;
+  nothing when autocomplete is off), only when a search finds almost nothing.
 - **Keys.** SearXNG has keyboard keys of its own. On its results pages the keys listed under [Tweaks](#tweaks) win,
   and SearXNG's other keys keep working.
 

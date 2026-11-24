@@ -1,7 +1,7 @@
 /* ==UserStyle==
 @name         Blackout for SearXNG
 @namespace    blackout-for-startpage/searxng
-@version      1.0.1
+@version      1.0.2
 @license      MIT
 @homepageURL  https://github.com/astqh/blackout-for-startpage
 @supportURL   https://github.com/astqh/blackout-for-startpage/issues
@@ -139,10 +139,12 @@ html:has(> head > meta[name="generator"][content^="searx" i]) {
   & #urls .result .thumbnail { border-radius: 8px; }
 
   /* ---------- answers, corrections, sidebar boxes ---------- */
-  & #answers, & #corrections, & #infoboxes .infobox, & #sidebar details, & .dialog-error, & .dialog-modal, & .dialog-warning {
+  & #answers, & #corrections, & #infoboxes .infobox, & #sidebar details, & .dialog-error, & .dialog-error-block, & .dialog-modal, & .dialog-warning {
     background: var(--sp-surface) !important; color: var(--sp-ink-2) !important; border: 1px solid var(--sp-line) !important; border-radius: 16px !important; box-shadow: none !important;
   }
   & #answers .title, & #sidebar .title, & #infoboxes h2 { color: var(--sp-ink) !important; }
+  & .dialog-error-block, & .dialog-error { border-color: color-mix(in srgb, #ff6b6b 45%, var(--sp-line)) !important; }
+  & .dialog-error-block h4, & .dialog-error-block strong, & .dialog-error-block p:first-child { color: #ff8f8f !important; }
   & #corrections input[type="submit"], & #suggestions input[type="submit"] { color: var(--sp-link) !important; background: transparent !important; }
   & #search_url input, & #search_url pre, & #apis button, & #apis input { background: var(--sp-surface-2) !important; color: var(--sp-ink) !important; border-color: var(--sp-line-strong) !important; }
 

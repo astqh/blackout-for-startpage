@@ -1,0 +1,16 @@
+use_default_settings:
+  engines:
+    keep_only: []
+server:
+  secret_key: "blackouttestsecret"
+  limiter: false
+  image_proxy: false
+  port: 8888
+  bind_address: "127.0.0.1"
+search:
+  formats: [html, json]
+engines:
+  - name: blackouttest
+    engine: blackout_test
+    shortcut: bt
+    disabled: false

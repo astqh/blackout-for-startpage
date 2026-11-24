@@ -3,6 +3,36 @@
 Each release says which day's Startpage it was tested on. If something breaks, that date helps tell whether
 Startpage changed its page since.
 
+## 1.8.0 · 24 November 2026 (SearXNG)
+
+Misspelt searches. Tested in Chromium with the scripts loaded the way Violentmonkey loads them, on sample Startpage
+pages, a SearXNG running on the test machine and the public instance priv.au. Startpage's suggestion service itself
+couldn't be reached from the test machine, so "Did you mean" on startpage.com is untested; it stays quiet if that
+service doesn't answer.
+
+| Part | Version |
+|---|---|
+| Blackout theme | 1.2.2 |
+| Blackout theme for SearXNG | 1.0.2 |
+| Tweaks | 1.2.1 |
+| Home widgets | 1.3.0 |
+| Instant Answer | 2.7.1 |
+| F1 card | 1.4.1 |
+| Quick answers | 1.4.0 |
+
+- Misspelt keywords still find their card: `5 minut timer`, `spead test`, `flip a coinn`, `100 eruos`,
+  `f1 standigns`, `monza qualifiyng`, `silverstne results`. The card says what it understood ("Timer · for “5 minute
+  timer”"). Searches spelt right work exactly as before, and everyday words are never "corrected" (`5 minute time`,
+  `test drive` and `nice weather` show nothing).
+- Instant Answer treats `waht is …` and `diffrence between …` as the questions they are.
+- New quick answer, **Did you mean**: when a search finds almost nothing (fewer than 3 results) and the search engine
+  shows no correction of its own, it suggests a spelling, with a button to search it. On SearXNG the spelling comes
+  from the instance's own autocomplete (whatever service you picked in its preferences, and nothing if it's off); on
+  Startpage from Startpage's search suggestions. Its own switch is under ⚙.
+- The Blackout theme for SearXNG now also darkens SearXNG's "Sorry! No results" box, which stayed bright pink.
+- On a SearXNG search that found nothing, the cards line up with SearXNG's "no results" box.
+- The test suites are now in the repository, in `tests/` (see `tests/README.md`).
+
 ## 1.7.0 · 23 November 2026 (SearXNG)
 
 Instant Answer made faster, clearer and sturdier. Tested in Chromium with the scripts loaded the way Violentmonkey

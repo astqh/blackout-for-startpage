@@ -1,0 +1,46 @@
+// Startpage suite on sample pages (both branches).
+const { initScript, launch, ai, reporter, IAtext, IAsettings } = require("./lib");
+const { routeStartpage } = require("./sp-pages");
+const { check, done } = reporter();
+(async () => {
+  const browser = await launch();
+  const ctx = await browser.newContext();
+  await ctx.addInitScript(initScript(false));
+  await routeStartpage(ctx);
+  const page = await ctx.newPage(); const errors = []; page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("https://www.startpage.com/"); await page.waitForTimeout(1500);
+  check("startpage home: widgets after .search-home-inner", await page.evaluate(() => { const h = document.getElementById("sp-home"); return !!h && h.previousElementSibling.classList.contains("search-home-inner"); }));
+  await page.goto("https://www.startpage.com/sp/search?query=why+is+the+sky+blue"); await page.waitForTimeout(2000);
+  const r = await page.evaluate(() => ({ dots: document.querySelectorAll(".w-gl > .result .wgl-title-link-container + span").length, ia: document.getElementById("sp-instant-answer")?.nextElementSibling?.classList.contains("w-gl"), menu: window.__menu.join(" | ") }));
+  check("startpage: ⋮ after each title link container (not on the trap)", r.dots === 8, r.dots);
+  check("startpage: Instant Answer invite right before .w-gl", r.ia && /Turn on Instant Answer/.test(await IAtext(page)));
+  check("startpage: Startpage-only menu items still there", /ad-blocker banner/.test(r.menu) && /Private Search badge/.test(r.menu) && !/Use Instant Answer on/.test(r.menu));
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("j"); await page.keyboard.press("p"); await page.waitForTimeout(150);
+  check("startpage: j then p pins", await page.evaluate(() => !!document.querySelector(".w-gl[data-spt-pins] > .result[data-spt-pin]")));
+  await page.keyboard.press("j"); await page.keyboard.press("j"); await page.keyboard.press("h"); await page.waitForTimeout(150);
+  check("startpage: hidden line right after .w-gl", await page.evaluate(() => { const n = document.querySelector(".w-gl").nextElementSibling; return !!n && !!n.shadowRoot && /1 result from github\.com hidden/.test(n.shadowRoot.textContent); }));
+  await page.evaluate(() => document.querySelector(".w-gl > .result:not([data-spt-hide]) .wgl-title-link-container + span").shadowRoot.querySelector("button").click());
+  check("startpage: ⋮ menu has Anonymous View", await page.evaluate(() => /Open in Anonymous View/.test(document.getElementById("spt-ui").shadowRoot.textContent)));
+  await page.keyboard.press("Escape");
+  await page.goto("https://www.startpage.com/sp/search?query=flip+a+coin"); await page.waitForTimeout(1500);
+  check("startpage: quick card above the results", await page.evaluate(() => document.getElementById("sp-quick-widget")?.parentElement.id === "main"));
+  // Instant Answer on Startpage: answer from the page's results, follow-up that searches Startpage, summary
+  await page.evaluate((s) => { localStorage.setItem("__gm_instant-answer:settings", s); localStorage.removeItem("__gm_instant-answer:cache"); }, IAsettings());
+  await ai.reset();
+  await page.goto("https://www.startpage.com/sp/search?query=why+is+the+sky+blue"); await page.waitForTimeout(2500);
+  check("startpage: answer shown", /Rayleigh/.test(await IAtext(page)));
+  let log = await ai.log();
+  check("startpage: results sent, hidden site and trap left out", log.length > 0 && /bbc\.co\.uk/.test(JSON.stringify(log[log.length - 1].messages)) && !/startpage\.com\/clev|github\.com/.test(JSON.stringify(log[log.length - 1].messages)));
+  check("startpage: no cookies to the AI service", log.every((e) => !e.cookie));
+  await page.evaluate(() => { const i = document.getElementById("sp-instant-answer").shadowRoot.querySelector(".ask input"); i.value = "and what about sunsets?"; i.closest("form").requestSubmit(); });
+  await page.waitForTimeout(3500);
+  log = await ai.log();
+  check("startpage: follow-up searched Startpage", /sky colour physics/.test(JSON.stringify(log[log.length - 1].messages)) && /Searched Startpage for/.test(await IAtext(page)));
+  await page.locator(".w-gl > .result:not([data-spt-hide]) .wgl-title-link-container + span button").nth(1).click();
+  await page.locator("#spt-ui .menu button[data-act=sum]").click();
+  await page.waitForTimeout(2500);
+  check("startpage: summary written under the result", await page.evaluate(() => { const s = document.querySelector(".w-gl > .result .sp-ai-summary"); return !!s && /Rayleigh/.test(s.shadowRoot.textContent); }));
+  check("startpage: no page errors", !errors.length, errors.join(" | "));
+  await browser.close(); done();
+})().catch((e) => { console.error(e); done(); process.exitCode = 1; });
